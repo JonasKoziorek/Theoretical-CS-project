@@ -1,0 +1,1 @@
+This repository contains some implementations for the Theoretical Computer Science class.
