@@ -5,29 +5,194 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 1c0b6789-7dcb-4005-8adc-e1a4a275629d
-using Plots, GraphRecipes, Graphs
+using Plots, GraphRecipes, Graphs, SparseArrays
+
+# ╔═╡ 52e6d1e7-064a-4cea-940d-31626ba11444
+abstract type FA end # FA = finite automate
+
+# ╔═╡ 42bbc7bb-2619-4e2f-8feb-b6db95725a1f
+md"""
+# Deterministic Finite Automata (DFA)
+Formally represented by 5-tuple (Q, Σ, δ, q0, F) where:
+
+* Q = set of possible states
+* Σ = finite input alphabet
+* δ: Q × Σ → Q is a transition function
+* q0 ∈ Q is an initial state
+* F ⊆ Q is a set of final states 
+
+We will represent this structure in code as follows:
+"""
+
+
+# ╔═╡ 043818ac-da5e-4c41-8f7b-5af36902cd2c
+struct DFA <: FA # DFA = deterministic finite automata
+	Q :: Int64
+	Σ :: Vector{Char} 
+	δ :: Matrix{Int64}
+	q0 :: Int64
+	F :: Vector{Int64}
+end
+
+# ╔═╡ 79b44855-5d5d-4c4d-b7d4-566f518dd2c9
+md"""
+Here we provide some functionalities for DFA types:
+"""
+
+# ╔═╡ 6920938e-35c1-4ad6-afdc-7074b6c14864
+begin
+	function transition_diagram(automata::DFA)
+		graphplot(
+			DiGraph(automata.δ);
+			fontsize = 16,
+			nodeshape = :circle,
+			names = 1:automata.Q,
+			edgelabel = name_edges(automata),
+			nodecolor = :white,
+			axis_buffer = 0.2
+		)	
+	end
+
+	function δ(automata::DFA, state::Int64, symbol::Char)
+		x = state
+		y = findfirst(q -> q==symbol, automata.Σ)
+		return automata.δ[x,y]
+	end
+	
+	function δ(automata::DFA, state::Int64, word::String)
+		if length(word) > 1
+			prefix = word[1:end-1]
+			suffix = last(word)
+			return δ(automata, δ(automata, state, prefix) ,suffix)
+		else
+			return δ(automata, state, first(word))
+		end
+	end
+
+	function accepts(automata::DFA, word::String)
+		state = automata.q0
+		result = δ(automata, state, word)
+		if result in automata.F
+			return true
+		else
+			return false
+		end
+	end
+
+	function name_edges(automata::DFA)
+		names = Dict{Tuple{Int64, Int64},Char}()
+		(m,n) = size(automata.δ)
+		for i = 1:m
+			for j = 1:n
+				next_state = automata.δ[i,j]
+				if next_state != 0
+					symbol = automata.Σ[j]
+					names[(i,next_state)] = symbol
+				end
+			end
+		end
+		return names
+	end
+end
 
 # ╔═╡ 8cc13850-e8d3-11ed-2309-8f80bad85bd2
 begin
-	# Define the adjacency matrix
-	adj_matrix = [
-		0 1 0;
-		1 0 1;
-		0 0 0
-	]
-	
-	# Create the directed graph
-	graph = DiGraph(adj_matrix)
+	Q = 4
+	graph = zeros((Q,Q))
+	graph[1,2] = 2
+	graph[2,3] = 3
+	graph[3,2] = 1
+	automata = DFA(Q, ['a','b','c'], graph, 1, [2])
 end
 
-# ╔═╡ fcceafa9-3d1d-437a-a40a-fb4ce1abf3df
+# ╔═╡ bb538110-b40e-4f2a-b608-d84029b03101
+transition_diagram(automata)
+
+# ╔═╡ acb2474a-48c3-4e03-b730-0b6c8da5b187
+function Base.show(io::IO, automata::DFA)
+	matrix = automata.δ
+	(m,n) = size(matrix)
+	new_mat = Array{Any}(nothing, (m+1,n+1))
+	new_mat[2:end,2:end] = matrix
+	new_mat[1,2:end] = automata.Σ
+	new_mat[2:end, 1] = 1:automata.Q
+	new_mat[1,1] = 0
+	print(io, new_mat)
+end
+
+# ╔═╡ e3dc30aa-9299-4dbe-8761-7b07fa815669
+automata.δ
+
+# ╔═╡ 8bd20a75-9e3e-4706-ac0f-efdc3609ff5c
 graphplot(
-	graph;
-	fontsize = 20,
+	automata.δ;
+	fontsize = 16,
 	nodeshape = :circle,
-	names = ['a','b','c'],
-	nodecolor = :white
-)
+	names = 1:automata.Q,
+	edgelabel = automata.δ,
+	nodecolor = :white,
+	self_edge_size = 0.25,
+	method = :stress,
+	axis_buffer = 0.6
+)	
+
+# ╔═╡ 15fc68c9-1b48-4b6c-903a-e23e82399b3a
+# begin
+# 	function transition_diagram(automata::DFA)
+# 		graphplot(
+# 			DiGraph(automata.δ);
+# 			fontsize = 16,
+# 			nodeshape = :circle,
+# 			names = 1:automata.Q,
+# 			edgelabel = name_edges(automata),
+# 			nodecolor = :white
+# 		)	
+# 	end
+
+# 	function δ(automata::DFA, state::Int64, symbol::Char)
+# 		x = state
+# 		y = findfirst(q -> q==symbol, automata.Σ)
+# 		return automata.δ[x,y]
+# 	end
+	
+# 	function δ(automata::DFA, state::Int64, word::String)
+# 		if length(word) > 1
+# 			prefix = word[1:end-1]
+# 			suffix = last(word)
+# 			return δ(automata, δ(automata, state, prefix) ,suffix)
+# 		else
+# 			return δ(automata, state, first(word))
+# 		end
+# 	end
+
+# 	function accepts(automata::DFA, word::String)
+# 		state = automata.q0
+# 		result = δ(automata, state, word)
+# 		if result in automata.F
+# 			return true
+# 		else
+# 			return false
+# 		end
+# 	end
+
+# 	function name_edges(automata::DFA)
+# 		names = Dict{Tuple{Int64, Int64},Char}()
+# 		(m,n) = size(automata.δ)
+# 		for i = 1:m
+# 			for j = 1:n
+# 				next_state = automata.δ[i,j]
+# 				if next_state != 0
+# 					symbol = automata.Σ[j]
+# 					names[(i,next_state)] = symbol
+# 				end
+# 			end
+# 		end
+# 		return names
+# 	end
+# end
+
+# ╔═╡ b5a42c70-21fe-4cd9-81f8-0e4539ac38c3
+fill("", 3,3)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -35,6 +200,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
 GraphRecipes = "~0.5.12"
@@ -48,7 +214,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "5b0712202b7600006d52c11fbfde9e8146533d22"
+project_hash = "1ee835f57ec824406060ced2adf34c8a4d4c5249"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -1140,7 +1306,17 @@ version = "1.4.1+0"
 
 # ╔═╡ Cell order:
 # ╠═1c0b6789-7dcb-4005-8adc-e1a4a275629d
+# ╠═52e6d1e7-064a-4cea-940d-31626ba11444
+# ╟─42bbc7bb-2619-4e2f-8feb-b6db95725a1f
+# ╠═043818ac-da5e-4c41-8f7b-5af36902cd2c
+# ╟─79b44855-5d5d-4c4d-b7d4-566f518dd2c9
+# ╠═6920938e-35c1-4ad6-afdc-7074b6c14864
 # ╠═8cc13850-e8d3-11ed-2309-8f80bad85bd2
-# ╠═fcceafa9-3d1d-437a-a40a-fb4ce1abf3df
+# ╠═bb538110-b40e-4f2a-b608-d84029b03101
+# ╠═acb2474a-48c3-4e03-b730-0b6c8da5b187
+# ╠═e3dc30aa-9299-4dbe-8761-7b07fa815669
+# ╠═8bd20a75-9e3e-4706-ac0f-efdc3609ff5c
+# ╠═15fc68c9-1b48-4b6c-903a-e23e82399b3a
+# ╠═b5a42c70-21fe-4cd9-81f8-0e4539ac38c3
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
