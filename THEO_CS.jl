@@ -4,8 +4,18 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
 # ╔═╡ 1c0b6789-7dcb-4005-8adc-e1a4a275629d
-using Plots, GraphRecipes, Graphs, SparseArrays
+using Plots, GraphRecipes, Graphs, Random, PlutoUI
 
 # ╔═╡ 52e6d1e7-064a-4cea-940d-31626ba11444
 abstract type FA end # FA = finite automate
@@ -27,9 +37,7 @@ We will represent this structure in code as follows:
 
 # ╔═╡ 043818ac-da5e-4c41-8f7b-5af36902cd2c
 struct DFA <: FA # DFA = deterministic finite automata
-	Q :: Int64
-	Σ :: Vector{Char} 
-	δ :: Matrix{Int64}
+	δ :: Matrix{String}
 	q0 :: Int64
 	F :: Vector{Int64}
 end
@@ -39,16 +47,32 @@ md"""
 Here we provide some functionalities for DFA types:
 """
 
+# ╔═╡ 8cc13850-e8d3-11ed-2309-8f80bad85bd2
+begin
+	Q = 5
+	graph = fill("", Q,Q)
+	graph[1,2] = "b"
+	graph[2,3] = "a"
+	graph[3,2] = "c"
+	graph[2,5] = "a"
+	graph[2,1] = "b"
+	automata = DFA(graph, 1, [2])
+end
+
 # ╔═╡ 6920938e-35c1-4ad6-afdc-7074b6c14864
 begin
-	function transition_diagram(automata::DFA)
+	function transition_diagram(automata::DFA, state::Int64 = automata.q0)
+		Random.seed!(123)
+		Q_size = first(size(automata.δ))
+		colors = [:white for i in 1:Q_size]
+		colors[state] = :gray
 		graphplot(
-			DiGraph(automata.δ);
+			to_adjacency(automata.δ);
 			fontsize = 16,
 			nodeshape = :circle,
-			names = 1:automata.Q,
-			edgelabel = name_edges(automata),
-			nodecolor = :white,
+			names = 1:Q_size,
+			edgelabel = automata.δ,
+			nodecolor = colors,
 			axis_buffer = 0.2
 		)	
 	end
@@ -93,106 +117,47 @@ begin
 		end
 		return names
 	end
-end
 
-# ╔═╡ 8cc13850-e8d3-11ed-2309-8f80bad85bd2
-begin
-	Q = 4
-	graph = zeros((Q,Q))
-	graph[1,2] = 2
-	graph[2,3] = 3
-	graph[3,2] = 1
-	automata = DFA(Q, ['a','b','c'], graph, 1, [2])
+	function to_adjacency(automata::Matrix{String})
+		map(graph) do x
+			if x == ""
+				false
+			else
+				return true
+			end
+		end
+	end
 end
 
 # ╔═╡ bb538110-b40e-4f2a-b608-d84029b03101
-transition_diagram(automata)
+# transition_diagram(automata)
 
-# ╔═╡ acb2474a-48c3-4e03-b730-0b6c8da5b187
-function Base.show(io::IO, automata::DFA)
-	matrix = automata.δ
-	(m,n) = size(matrix)
-	new_mat = Array{Any}(nothing, (m+1,n+1))
-	new_mat[2:end,2:end] = matrix
-	new_mat[1,2:end] = automata.Σ
-	new_mat[2:end, 1] = 1:automata.Q
-	new_mat[1,1] = 0
-	print(io, new_mat)
+# ╔═╡ d5e8a30e-7c02-4488-9b76-c433bfc47af3
+md"""
+Feed automata with symbol: $(@bind answer TextField())
+"""
+
+# ╔═╡ 38eeeab0-7390-4ecb-8649-a215db54bdf9
+begin
+	function show_step(automata, state::String)
+		if length(state) > 0
+			num = parse(Int,state)
+			try
+				transition_diagram(automata, num)
+			catch e
+				if e isa BoundsError
+					println("Move $(num) is not valid.")
+					transition_diagram(automata)
+				else
+					rethrow(e)
+				end
+			end
+		else
+			transition_diagram(automata)
+		end
+	end
+	show_step(automata, answer)
 end
-
-# ╔═╡ e3dc30aa-9299-4dbe-8761-7b07fa815669
-automata.δ
-
-# ╔═╡ 8bd20a75-9e3e-4706-ac0f-efdc3609ff5c
-graphplot(
-	automata.δ;
-	fontsize = 16,
-	nodeshape = :circle,
-	names = 1:automata.Q,
-	edgelabel = automata.δ,
-	nodecolor = :white,
-	self_edge_size = 0.25,
-	method = :stress,
-	axis_buffer = 0.6
-)	
-
-# ╔═╡ 15fc68c9-1b48-4b6c-903a-e23e82399b3a
-# begin
-# 	function transition_diagram(automata::DFA)
-# 		graphplot(
-# 			DiGraph(automata.δ);
-# 			fontsize = 16,
-# 			nodeshape = :circle,
-# 			names = 1:automata.Q,
-# 			edgelabel = name_edges(automata),
-# 			nodecolor = :white
-# 		)	
-# 	end
-
-# 	function δ(automata::DFA, state::Int64, symbol::Char)
-# 		x = state
-# 		y = findfirst(q -> q==symbol, automata.Σ)
-# 		return automata.δ[x,y]
-# 	end
-	
-# 	function δ(automata::DFA, state::Int64, word::String)
-# 		if length(word) > 1
-# 			prefix = word[1:end-1]
-# 			suffix = last(word)
-# 			return δ(automata, δ(automata, state, prefix) ,suffix)
-# 		else
-# 			return δ(automata, state, first(word))
-# 		end
-# 	end
-
-# 	function accepts(automata::DFA, word::String)
-# 		state = automata.q0
-# 		result = δ(automata, state, word)
-# 		if result in automata.F
-# 			return true
-# 		else
-# 			return false
-# 		end
-# 	end
-
-# 	function name_edges(automata::DFA)
-# 		names = Dict{Tuple{Int64, Int64},Char}()
-# 		(m,n) = size(automata.δ)
-# 		for i = 1:m
-# 			for j = 1:n
-# 				next_state = automata.δ[i,j]
-# 				if next_state != 0
-# 					symbol = automata.Σ[j]
-# 					names[(i,next_state)] = symbol
-# 				end
-# 			end
-# 		end
-# 		return names
-# 	end
-# end
-
-# ╔═╡ b5a42c70-21fe-4cd9-81f8-0e4539ac38c3
-fill("", 3,3)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -200,12 +165,14 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
 GraphRecipes = "~0.5.12"
 Graphs = "~1.8.0"
 Plots = "~1.38.11"
+PlutoUI = "~0.7.51"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -214,7 +181,13 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "1ee835f57ec824406060ced2adf34c8a4d4c5249"
+project_hash = "4f10380c8d3ae3ddd6a6e557c2caab3722010d14"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "8eaf9f1b4921132a4cff3f36a1d9ba923b14a481"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.1.4"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "faa260e4cb5aba097a73fab382dd4b5819d8ec8c"
@@ -520,6 +493,24 @@ git-tree-sha1 = "129acf094d168394e80ee1dc4bc06ec835e510a3"
 uuid = "2e76f6c2-a576-52d4-95c1-20adfe4de566"
 version = "2.8.1+1"
 
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+deps = ["Tricks"]
+git-tree-sha1 = "c47c5fa4c5308f27ccaac35504858d8914e102f9"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.4"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "f7be53659ab06ddc986428d3a9dcc95f6fa6705a"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.2"
+
 [[deps.Inflate]]
 git-tree-sha1 = "5cd07aab533df5170988219191dfad0519391428"
 uuid = "d25df0c9-e2be-5dd7-82c8-3ad0b3e990b9"
@@ -698,6 +689,11 @@ git-tree-sha1 = "cedb76b37bc5a6c702ade66be44f831fa23c681e"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
 version = "1.0.0"
 
+[[deps.MIMEs]]
+git-tree-sha1 = "65f28ad4b594aebe22157d6fac869786a255b7eb"
+uuid = "6c6e2e6c-3030-632d-7369-2d6c69616d65"
+version = "0.1.4"
+
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
 git-tree-sha1 = "42324d08725e200c23d4dfb549e0d5d89dede2d2"
@@ -848,6 +844,12 @@ deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers"
 git-tree-sha1 = "6c7f47fd112001fc95ea1569c2757dffd9e81328"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 version = "1.38.11"
+
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "FixedPointNumbers", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "MIMEs", "Markdown", "Random", "Reexport", "URIs", "UUIDs"]
+git-tree-sha1 = "b478a748be27bd2f2c73a7690da219d0844db305"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.51"
 
 [[deps.PrecompileTools]]
 deps = ["Preferences"]
@@ -1043,6 +1045,11 @@ deps = ["Random", "Test"]
 git-tree-sha1 = "9a6ae7ed916312b41236fcef7e0af564ef934769"
 uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
 version = "0.9.13"
+
+[[deps.Tricks]]
+git-tree-sha1 = "aadb748be58b492045b4f56166b5188aa63ce549"
+uuid = "410a4b4d-49e4-4fbc-ab6d-cb71b17b3775"
+version = "0.1.7"
 
 [[deps.URIs]]
 git-tree-sha1 = "074f993b0ca030848b897beff716d93aca60f06a"
@@ -1313,10 +1320,7 @@ version = "1.4.1+0"
 # ╠═6920938e-35c1-4ad6-afdc-7074b6c14864
 # ╠═8cc13850-e8d3-11ed-2309-8f80bad85bd2
 # ╠═bb538110-b40e-4f2a-b608-d84029b03101
-# ╠═acb2474a-48c3-4e03-b730-0b6c8da5b187
-# ╠═e3dc30aa-9299-4dbe-8761-7b07fa815669
-# ╠═8bd20a75-9e3e-4706-ac0f-efdc3609ff5c
-# ╠═15fc68c9-1b48-4b6c-903a-e23e82399b3a
-# ╠═b5a42c70-21fe-4cd9-81f8-0e4539ac38c3
+# ╟─38eeeab0-7390-4ecb-8649-a215db54bdf9
+# ╟─d5e8a30e-7c02-4488-9b76-c433bfc47af3
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
