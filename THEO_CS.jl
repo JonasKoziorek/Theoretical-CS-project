@@ -37,7 +37,9 @@ We will represent this structure in code as follows:
 
 # ╔═╡ 043818ac-da5e-4c41-8f7b-5af36902cd2c
 struct DFA <: FA # DFA = deterministic finite automata
-	δ :: Matrix{String}
+	Q :: Int64
+	Σ :: Vector{String}
+	δ :: Matrix{Int64}
 	q0 :: Int64
 	F :: Vector{Int64}
 end
@@ -47,18 +49,6 @@ md"""
 Here we provide some functionalities for DFA types:
 """
 
-# ╔═╡ 8cc13850-e8d3-11ed-2309-8f80bad85bd2
-begin
-	Q = 5
-	graph = fill("", Q,Q)
-	graph[1,2] = "b"
-	graph[2,3] = "a"
-	graph[3,2] = "c"
-	graph[2,5] = "a"
-	graph[2,1] = "b"
-	automata = DFA(graph, 1, [2])
-end
-
 # ╔═╡ 6920938e-35c1-4ad6-afdc-7074b6c14864
 begin
 	function transition_diagram(automata::DFA, state::Int64 = automata.q0)
@@ -67,13 +57,14 @@ begin
 		colors = [:white for i in 1:Q_size]
 		colors[state] = :gray
 		graphplot(
-			to_adjacency(automata.δ);
+			plot_format(automata);
 			fontsize = 16,
 			nodeshape = :circle,
 			names = 1:Q_size,
-			edgelabel = automata.δ,
+			# edgelabel = to_adjacency(automata),
 			nodecolor = colors,
-			axis_buffer = 0.2
+			axis_buffer = 0.3,
+			self_edge_size = 0.17
 		)	
 	end
 
@@ -118,19 +109,48 @@ begin
 		return names
 	end
 
-	function to_adjacency(automata::Matrix{String})
-		map(graph) do x
-			if x == ""
-				false
-			else
-				return true
-			end
-		end
+	function plot_format(automata::DFA)
+		graph = automata.δ
+		(m,n) = size(graph)
+		vect = [[] for i in 1:automata.Q]
+		# for i = 1:m
+		# 	for j = 1:n
+		# 		value = graph[i,j]
+		# 		if value != 0
+		# 			[push!(vect[i], j) if graph[i,j] != 0 for i = 1:m, for j = 1:n]
+		# 		end
+		# 	end
+		# end
+		[push!(vect[i], graph[i,j]) for i = 1:m, j = 1:n  if graph[i,j] != 0]
+		return vect
 	end
+	
+	# function plot_edge_names(automata::DFA)
+	# 	graph = to_adjacency(automata)
+	# 	map(graph) do x
+	# 		if x == ""
+	# 			false
+	# 		else
+	# 			return true
+	# 		end
+	# 	end
+	# end
+end
+
+# ╔═╡ 8cc13850-e8d3-11ed-2309-8f80bad85bd2
+begin
+	Q = 3
+	Σ = ["a", "b", "c"]
+	graph = [
+	3 3 3;
+	3 3 3;
+	3 3 3
+	]
+	automata = DFA(Q, Σ, graph, 1, [2])
 end
 
 # ╔═╡ bb538110-b40e-4f2a-b608-d84029b03101
-# transition_diagram(automata)
+transition_diagram(automata)
 
 # ╔═╡ d5e8a30e-7c02-4488-9b76-c433bfc47af3
 md"""
