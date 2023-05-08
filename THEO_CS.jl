@@ -38,10 +38,20 @@ We will represent this structure in code as follows:
 # ╔═╡ 043818ac-da5e-4c41-8f7b-5af36902cd2c
 struct DFA <: FA # DFA = deterministic finite automata
 	Q :: Int64
-	Σ :: Vector{String}
+	Σ :: Vector{Char}
 	δ :: Matrix{Int64}
 	q0 :: Int64
 	F :: Vector{Int64}
+
+	function DFA(Σ::Vector{Char}, δ::Matrix{Int64}, q0::Int64, F::Vector{Int64})
+        new(
+			size(δ, 1), 
+			Σ, 
+			δ, 
+			q0, 
+			F
+		)
+    end
 end
 
 # ╔═╡ 79b44855-5d5d-4c4d-b7d4-566f518dd2c9
@@ -58,13 +68,14 @@ begin
 		colors[state] = :gray
 		graphplot(
 			plot_format(automata);
-			fontsize = 16,
+			fontsize = 15,
 			nodeshape = :circle,
 			names = 1:Q_size,
-			# edgelabel = to_adjacency(automata),
+			edgelabel = label_edges(automata),
 			nodecolor = colors,
-			axis_buffer = 0.3,
-			self_edge_size = 0.17
+			axis_buffer = 0.5,
+			self_edge_size = 0.17,
+			method = :stress
 		)	
 	end
 
@@ -94,59 +105,52 @@ begin
 		end
 	end
 
-	function name_edges(automata::DFA)
-		names = Dict{Tuple{Int64, Int64},Char}()
-		(m,n) = size(automata.δ)
-		for i = 1:m
-			for j = 1:n
-				next_state = automata.δ[i,j]
-				if next_state != 0
-					symbol = automata.Σ[j]
-					names[(i,next_state)] = symbol
-				end
-			end
-		end
-		return names
-	end
-
 	function plot_format(automata::DFA)
 		graph = automata.δ
 		(m,n) = size(graph)
 		vect = [[] for i in 1:automata.Q]
-		# for i = 1:m
-		# 	for j = 1:n
-		# 		value = graph[i,j]
-		# 		if value != 0
-		# 			[push!(vect[i], j) if graph[i,j] != 0 for i = 1:m, for j = 1:n]
-		# 		end
-		# 	end
-		# end
 		[push!(vect[i], graph[i,j]) for i = 1:m, j = 1:n  if graph[i,j] != 0]
 		return vect
 	end
-	
-	# function plot_edge_names(automata::DFA)
-	# 	graph = to_adjacency(automata)
-	# 	map(graph) do x
-	# 		if x == ""
-	# 			false
-	# 		else
-	# 			return true
-	# 		end
-	# 	end
-	# end
+
+	function label_edges(automata::DFA)
+		labels = Dict{Tuple{Int64, Int64, Int64}, Char}()
+		graph = automata.δ
+		(m,n) = size(graph)
+		vect = [[] for i in 1:automata.Q]
+		elems = []
+		names = []
+		for i = 1:m
+			matches = findall(x -> x != 0, graph[i,:])
+			for e in 1:length(matches)
+				j = matches[e]
+				push!(elems, (i, graph[i,j]))
+				push!(names, automata.Σ[j])
+			end
+		end
+		
+		counter = []
+		for (i,elem) in enumerate(elems)
+			count_ = count(==(elem), counter)
+			push!(counter, elem)
+			labels[(elem[1], elem[2], count_+1)] = names[i]
+		end
+		
+		return labels
+	end
 end
 
 # ╔═╡ 8cc13850-e8d3-11ed-2309-8f80bad85bd2
 begin
-	Q = 3
-	Σ = ["a", "b", "c"]
+	Σ = 	['a', 'b', 'c', 'd']
 	graph = [
-	3 3 3;
-	3 3 3;
-	3 3 3
-	]
-	automata = DFA(Q, Σ, graph, 1, [2])
+			  0    0    3    1;
+			  4    0    0    2;
+			  0    1    0    5;
+			  5    4    0    0;
+			  0    0    0    2
+			]
+	automata = DFA(Σ, graph, 1, [2])
 end
 
 # ╔═╡ bb538110-b40e-4f2a-b608-d84029b03101
@@ -159,25 +163,36 @@ Feed automata with symbol: $(@bind answer TextField())
 
 # ╔═╡ 38eeeab0-7390-4ecb-8649-a215db54bdf9
 begin
+	current_state = automata.q0
 	function show_step(automata, state::String)
+		global current_state
 		if length(state) > 0
-			num = parse(Int,state)
-			try
-				transition_diagram(automata, num)
-			catch e
-				if e isa BoundsError
-					println("Move $(num) is not valid.")
-					transition_diagram(automata)
-				else
-					rethrow(e)
+			new_state = δ(automata, current_state,state)
+			if new_state != 0
+				try
+					current_state = new_state
+				catch e
+					if e isa BoundsError
+						println("Move $(num) is not valid.")
+					else
+						rethrow(e)
+					end
 				end
 			end
-		else
-			transition_diagram(automata)
 		end
+		transition_diagram(automata, current_state)
 	end
 	show_step(automata, answer)
 end
+
+# ╔═╡ d1325a74-acbc-40ad-9cdd-d5c723d1b38e
+label_edges(automata)
+
+# ╔═╡ ab37b446-9ae2-43f2-8ad2-23c955bef5e2
+graph
+
+# ╔═╡ 14d452a8-9688-4c91-99f1-199d07c19d9d
+δ(automata, 1, "c")
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1342,5 +1357,8 @@ version = "1.4.1+0"
 # ╠═bb538110-b40e-4f2a-b608-d84029b03101
 # ╟─38eeeab0-7390-4ecb-8649-a215db54bdf9
 # ╟─d5e8a30e-7c02-4488-9b76-c433bfc47af3
+# ╠═d1325a74-acbc-40ad-9cdd-d5c723d1b38e
+# ╠═ab37b446-9ae2-43f2-8ad2-23c955bef5e2
+# ╠═14d452a8-9688-4c91-99f1-199d07c19d9d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
