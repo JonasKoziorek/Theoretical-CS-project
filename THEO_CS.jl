@@ -20,7 +20,7 @@ using Plots, GraphRecipes, Graphs, Random, PlutoUI
 # ╔═╡ 295638ba-a435-42db-aa5a-838a47d594ab
 md"""
 # Introduction
-We will be implementing algorithms from the first 6 chapters from the _Introduction to Automata Theory, Languages and Computation by John E. Hopcroft and Jeffrey D. Ullman_.
+We will be implementing algorithms from the first 6 chapters from the _Introduction to Automata Theory, Languages and Computation by John E. Hopcroft and Jeffrey D. Ullman_. The aim of this work is to show that modern programming languages can get very close to mathematics that mathematicians see in the books. Nowdays it is becoming easy for scientists to easily convert mathematics into code with almost the same syntax.
 """
 
 # ╔═╡ e7d3ed3d-6eeb-4783-a0d4-864dd258588a
@@ -41,6 +41,8 @@ begin
 	Word = String
 	Symbol = Char
 	State = Char
+	const 𝜖 = ""
+	Language = Set{Word}
 end;
 
 # ╔═╡ 42bbc7bb-2619-4e2f-8feb-b6db95725a1f
@@ -62,28 +64,10 @@ We will represent this structure in code as follows:
 struct DFA <: FA # DFA = deterministic finite automata
 	Q :: Set{State}
 	Σ :: Set{Symbol}
-	δ :: Dict{
-		Tuple{State,Symbol}, 
-		State
-	}
-	q0 :: Int64
+	δ :: Dict{Tuple{State,Symbol}, State}
+	q0 :: State
 	F :: Set{State}
-
-	function DFA(Σ::Set{State}, δ::Matrix{Int64}, q0::State, F::Set{State})
-        new(
-			size(δ, 1), 
-			Σ, 
-			δ, 
-			q0, 
-			F
-		)
-    end
 end
-
-# ╔═╡ 79b44855-5d5d-4c4d-b7d4-566f518dd2c9
-md"""
-Here we provide some functionalities for DFA types:
-"""
 
 # ╔═╡ 6920938e-35c1-4ad6-afdc-7074b6c14864
 begin
@@ -138,58 +122,148 @@ begin
 		
 		return labels
 	end
-end
+end;
 
 # ╔═╡ 5f52b01e-243a-475a-9583-afc7bc31bd60
 md"""
-Let's define the transition function δ for a DFA that accepts a symbol and 
+Let's construct the transition function δ for a DFA that accepts a current state and a symbol and moves the automata to the next state.
 """
 
 # ╔═╡ ee2b299b-8ff7-4c90-9e82-0cd3b5eb835a
-function δ(automata::DFA, state::Int64, symbol::Char)
-	x = state
-	y = findfirst(q -> q==symbol, automata.Σ)
-	return automata.δ[x,y]
+function δ(automata::DFA, state::State, symbol::Symbol)
+	return automata.δ[(state, symbol)]
 end
 
-# ╔═╡ 36e2df5e-3515-46c9-8b30-dc409e0cb444
-	function δ(automata::DFA, state::Int64, symbol::Char)
-		x = state
-		y = findfirst(q -> q==symbol, automata.Σ)
-		return automata.δ[x,y]
-	end
-	
-	function δ(automata::DFA, state::Int64, word::String)
-		if length(word) > 1
-			prefix = word[1:end-1]
-			suffix = last(word)
-			return δ(automata, δ(automata, state, prefix) ,suffix)
-		else
-			return δ(automata, state, first(word))
-		end
-	end
+# ╔═╡ 4bc35f6c-c01b-46be-834b-e00c050cfb2a
+md"""
+We can simply extend the transition function δ such that it accepts words.
+"""
 
-	function accepts(automata::DFA, word::String)
-		state = automata.q0
-		result = δ(automata, state, word)
-		if result in automata.F
-			return true
-		else
-			return false
-		end
+# ╔═╡ f97e7bdf-231f-4430-9b05-ecc01bcaca10
+function δ(automata::DFA, state::State, word::Word)
+	if length(word) > 1
+		prefix = word[1:end-1]
+		suffix = last(word)
+		return δ(automata, δ(automata, state, prefix) , suffix)
+	else
+		return δ(automata, state, first(word))
 	end
+end
+
+# ╔═╡ 3c3da943-5661-4fa3-a3f0-dbd90ed63a1f
+md"""
+DFA _accepts_ a word if and only if the δ(q0, word) ∈ F. We can check whether a word is accepted algorithmically this way:
+"""
+
+# ╔═╡ 36e2df5e-3515-46c9-8b30-dc409e0cb444
+function accepts(automata::DFA, word::String)
+	state = automata.q0
+	result = δ(automata, state, word)
+	if result in automata.F
+		return true
+	else
+		return false
+	end
+end
 
 # ╔═╡ 8cc13850-e8d3-11ed-2309-8f80bad85bd2
 begin
-	Σ = 	Set(['a', 'b', 'c', 'd'])
-	graph = [
-			  0    0    3    1;
-			  4    0    0    2;
-			  0    1    0    5;
-			  5    4    0    0;
-			  0    0    0    2
-			]
-	automata = DFA(Σ, graph, 1, Set([2]))
+	Q = Set(['1', '2', '3', '4', '5'])
+	Σ = Set(['a', 'b', 'c', 'd'])
+	δ2 = Dict(
+		('1', 'a') => '2',
+		('5', 'b') => '3',
+		('4', 'd') => '1',
+		('3', 'c') => '4',
+		('2', 'b') => '5',		
+	)
+	q0 = '1'
+	F = Set(['2'])
+	automata = DFA(Q, Σ, δ2, q0, F)
+end
+
+# ╔═╡ a020300f-054f-40f2-bbc0-f2519bcb5aac
+md"""
+# Nondeterminictic Finite Automata (NFA)
+Formally represented by 5-tuple (Q, Σ, δ, q0, F) where:
+
+* Q = set of possible states
+* Σ = finite input alphabet
+* δ: Q × Σ → $2^Q$ is a transition function
+* q0 ∈ Q is an initial state
+* F ⊆ Q is a set of final states 
+
+We will represent this structure in code as follows:
+"""
+
+# ╔═╡ 6784b1b4-793d-42e7-8319-2d94a7f71eb2
+struct NFA <: FA # DFA = deterministic finite automata
+	Q :: Set{State}
+	Σ :: Set{Symbol}
+	δ :: Dict{Tuple{State,Symbol}, Set{State}}
+	q0 :: State
+	F :: Set{State}
+end
+
+# ╔═╡ 8c4234ce-c204-4931-a355-bc73e91c6823
+md"""
+# Nondeterminictic Finite Automata with 𝜖-moves (𝜖-NFA)
+Formally represented by 5-tuple (Q, Σ, δ, q0, F) where:
+
+* Q = set of possible states
+* Σ = finite input alphabet
+* δ: Q × (Σ ∪ {𝜖}) → $2^Q$ is a transition function
+* q0 ∈ Q is an initial state
+* F ⊆ Q is a set of final states 
+
+We will represent this structure in code as follows:
+"""
+# 𝜖 is \itepsilon
+
+# ╔═╡ 8604a238-25d4-466f-ba58-dbdd2fe657c5
+md"""
+# Regular Expressions (REGEX)
+To avoid parsing the expression that denotes a regular expression. We will be using full bracketing of the expression.
+"""
+
+# ╔═╡ 1a54e71e-ccb6-4a14-91cd-0544666b1bc5
+abstract type RegExpr end
+
+# ╔═╡ e2c14927-588b-423e-b18f-5336e4d77c98
+md"""
+Let's define the three basic regular expressions that occur in the book.
+"""
+
+# ╔═╡ 6745bf74-755c-4c9c-874e-e72772d68fd8
+struct Epsilon <: RegExpr
+	lang :: Language
+end
+
+# ╔═╡ ab41db78-7e4a-4e0e-b7e6-545afcfb8b6f
+struct KleeneClosure <: RegExpr
+	lang :: Language
+end
+
+# ╔═╡ 3478b0ad-3359-4168-a744-0c43e42cb867
+struct Concatenation <: RegExpr
+	lang :: Language
+end
+
+# ╔═╡ 5c105dd8-6c9a-47cb-9598-d2f57933df29
+struct Union <: RegExpr
+	lang :: Language
+end
+
+# ╔═╡ d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
+struct 𝜖NFA <: FA
+	Q :: Set{State}
+	Σ :: Set{Symbol}
+	δ :: Dict{
+			Union{Tuple{State,Symbol}, Word}, # state-symbol pair or empty word
+			Set{State}
+	}
+	q0 :: State
+	F :: Set{State}
 end
 
 # ╔═╡ bb538110-b40e-4f2a-b608-d84029b03101
@@ -1446,12 +1520,25 @@ version = "1.4.1+0"
 # ╠═81fc59a9-d0db-4675-b1ff-53540b75705e
 # ╟─42bbc7bb-2619-4e2f-8feb-b6db95725a1f
 # ╠═043818ac-da5e-4c41-8f7b-5af36902cd2c
-# ╟─79b44855-5d5d-4c4d-b7d4-566f518dd2c9
 # ╟─6920938e-35c1-4ad6-afdc-7074b6c14864
-# ╠═5f52b01e-243a-475a-9583-afc7bc31bd60
+# ╟─5f52b01e-243a-475a-9583-afc7bc31bd60
 # ╠═ee2b299b-8ff7-4c90-9e82-0cd3b5eb835a
+# ╟─4bc35f6c-c01b-46be-834b-e00c050cfb2a
+# ╠═f97e7bdf-231f-4430-9b05-ecc01bcaca10
+# ╟─3c3da943-5661-4fa3-a3f0-dbd90ed63a1f
 # ╠═36e2df5e-3515-46c9-8b30-dc409e0cb444
 # ╠═8cc13850-e8d3-11ed-2309-8f80bad85bd2
+# ╟─a020300f-054f-40f2-bbc0-f2519bcb5aac
+# ╠═6784b1b4-793d-42e7-8319-2d94a7f71eb2
+# ╟─8c4234ce-c204-4931-a355-bc73e91c6823
+# ╠═d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
+# ╟─8604a238-25d4-466f-ba58-dbdd2fe657c5
+# ╠═1a54e71e-ccb6-4a14-91cd-0544666b1bc5
+# ╠═e2c14927-588b-423e-b18f-5336e4d77c98
+# ╠═6745bf74-755c-4c9c-874e-e72772d68fd8
+# ╠═ab41db78-7e4a-4e0e-b7e6-545afcfb8b6f
+# ╠═3478b0ad-3359-4168-a744-0c43e42cb867
+# ╠═5c105dd8-6c9a-47cb-9598-d2f57933df29
 # ╠═bb538110-b40e-4f2a-b608-d84029b03101
 # ╟─38eeeab0-7390-4ecb-8649-a215db54bdf9
 # ╟─d5e8a30e-7c02-4488-9b76-c433bfc47af3
