@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.19.26
+# v0.19.27
 
 using Markdown
 using InteractiveUtils
@@ -39,8 +39,8 @@ We shall also intoduce aliases that better fit the vocabulary in the book.
 # ╔═╡ 81fc59a9-d0db-4675-b1ff-53540b75705e
 begin
 	Word = String
-	Symbol = Char
-	State = Char
+	Symbol = Char 
+	State = String # for states such as q1
 	const 𝜖 = ""
 	Language = Set{Word}
 end;
@@ -168,19 +168,33 @@ end
 
 # ╔═╡ 8cc13850-e8d3-11ed-2309-8f80bad85bd2
 begin
-	Q = Set(['1', '2', '3', '4', '5'])
-	Σ = Set(['a', 'b', 'c', 'd'])
-	δ2 = Dict(
-		('1', 'a') => '2',
-		('5', 'b') => '3',
-		('4', 'd') => '1',
-		('3', 'c') => '4',
-		('2', 'b') => '5',		
+	Q1 = Set(["1", "2", "3", "4", "5"])
+	Σ1 = Set(['a', 'b', 'c', 'd'])
+	δ1 = Dict(
+		("1", 'a') => "2",
+		("5", 'b') => "3",
+		("4", 'd') => "1",
+		("3", 'c') => "4",
+		("2", 'b') => "5",		
 	)
-	q0 = '1'
-	F = Set(['2'])
-	dfa = DFA(Q, Σ, δ2, q0, F)
+	q01 = "1"
+	F1 = Set(["2"])
+	dfa = DFA(Q1, Σ1, δ1, q01, F1)
 end
+# begin
+# 	Q = Set(['1', '2', '3', '4', '5'])
+# 	Σ = Set(['a', 'b', 'c', 'd'])
+# 	δ2 = Dict(
+# 		('1', 'a') => '2',
+# 		('5', 'b') => '3',
+# 		('4', 'd') => '1',
+# 		('3', 'c') => '4',
+# 		('2', 'b') => '5',		
+# 	)
+# 	q0 = '1'
+# 	F = Set(['2'])
+# 	dfa = DFA(Q, Σ, δ2, q0, F)
+# end
 
 # ╔═╡ a020300f-054f-40f2-bbc0-f2519bcb5aac
 md"""
@@ -219,6 +233,33 @@ Formally represented by 5-tuple (Q, Σ, δ, q0, F) where:
 We will represent this structure in code as follows:
 """
 # 𝜖 is \itepsilon
+
+# ╔═╡ d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
+struct 𝜖NFA <: FA
+	Q :: Set{State}
+	Σ :: Set{Symbol}
+	δ :: Dict{
+			Union{Tuple{State,Symbol}, Tuple{State, Word}}, # either char as Symbol or empty string as Word
+			Set{State}
+	}
+	q0 :: State
+	F :: Set{State}
+end
+# 𝜖 is \itepsilon
+
+# ╔═╡ a6323c56-c93f-41ff-b18b-0fe8e0cdc166
+begin
+	Q2 = Set(["a", "b", "c"])
+	Σ2 = Set(['0', '1', '2'])
+	δ2 = Dict(
+		("a", 𝜖) => Set(["a", "b"]),
+		("c", '1') => Set(["c", "a"]),
+		("b", '0') => Set(["a", "c"])	
+	)
+	q02 = "b"
+	F2 = Set(["b", "c"])
+	enfa = 𝜖NFA(Q2, Σ2, δ2, q02, F2)
+end
 
 # ╔═╡ 8604a238-25d4-466f-ba58-dbdd2fe657c5
 md"""
@@ -596,31 +637,6 @@ end
 # ╔═╡ 3a8686c4-05b3-48a3-8ee8-ffd751c1868d
 collect(Set([1,2,3]))
 
-# ╔═╡ 2afa1973-6128-4cd2-a0df-a860fbf15d29
-struct 𝜖NFA <: FA
-	Q :: Set{State}
-	Σ :: Set{Symbol}
-	δ :: Dict{
-			Union{Tuple{State,Symbol}, Word}, # state-symbol pair or empty word
-			Set{State}
-	}
-	q0 :: State
-	F :: Set{State}
-end
-
-# ╔═╡ d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
-struct 𝜖NFA <: FA
-	Q :: Set{State}
-	Σ :: Set{Symbol}
-	δ :: Dict{
-			Union{Tuple{State,Symbol}, Word}, # state-symbol pair or empty word
-			Set{State}
-	}
-	q0 :: State
-	F :: Set{State}
-end
-# 𝜖 is \itepsilon
-
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -641,7 +657,7 @@ PlutoUI = "~0.7.51"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.0"
+julia_version = "1.9.1"
 manifest_format = "2.0"
 project_hash = "4f10380c8d3ae3ddd6a6e557c2caab3722010d14"
 
@@ -1768,7 +1784,7 @@ version = "0.15.1+0"
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.7.0+0"
+version = "5.8.0+0"
 
 [[deps.libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1838,6 +1854,7 @@ version = "1.4.1+0"
 # ╠═6784b1b4-793d-42e7-8319-2d94a7f71eb2
 # ╟─8c4234ce-c204-4931-a355-bc73e91c6823
 # ╠═d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
+# ╠═a6323c56-c93f-41ff-b18b-0fe8e0cdc166
 # ╟─8604a238-25d4-466f-ba58-dbdd2fe657c5
 # ╠═1a54e71e-ccb6-4a14-91cd-0544666b1bc5
 # ╟─e2c14927-588b-423e-b18f-5336e4d77c98
@@ -1895,7 +1912,6 @@ version = "1.4.1+0"
 # ╠═cd92e57e-fd5f-49d3-bb66-fb60a3087e31
 # ╠═d7bcae00-b1ac-4c3d-81f3-827f87d75a4d
 # ╠═50d253f7-8309-4503-8823-2f691f89ea7d
-# ╠═2afa1973-6128-4cd2-a0df-a860fbf15d29
 # ╠═4343774c-8dde-428a-bf55-5ba6845963e2
 # ╠═3a8686c4-05b3-48a3-8ee8-ffd751c1868d
 # ╟─00000000-0000-0000-0000-000000000001
