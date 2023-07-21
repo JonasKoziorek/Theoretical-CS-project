@@ -179,7 +179,7 @@ begin
 	)
 	q0 = '1'
 	F = Set(['2'])
-	automata = DFA(Q, Σ, δ2, q0, F)
+	dfa = DFA(Q, Σ, δ2, q0, F)
 end
 
 # ╔═╡ a020300f-054f-40f2-bbc0-f2519bcb5aac
@@ -237,34 +237,87 @@ Let's define the three basic regular expressions that occur in the book.
 # ╔═╡ 6745bf74-755c-4c9c-874e-e72772d68fd8
 struct Epsilon <: RegExpr
 	lang :: Language
+
+	Epsilon() = new(Set([""]))
 end
 
 # ╔═╡ ab41db78-7e4a-4e0e-b7e6-545afcfb8b6f
-struct KleeneClosure <: RegExpr
-	lang :: Language
+struct KleeneClosure{T <: Union{RegExpr, Language}} <: RegExpr
+	lang :: T
 end
 
 # ╔═╡ 3478b0ad-3359-4168-a744-0c43e42cb867
-struct Concatenation <: RegExpr
-	lang :: Language
+struct Concatenation{T, M <: Union{RegExpr, Language}} <: RegExpr
+	lang1 :: T
+	lang2 :: M
 end
 
 # ╔═╡ 5c105dd8-6c9a-47cb-9598-d2f57933df29
-struct Union <: RegExpr
+struct LangUnion{T, M <: Union{RegExpr, Language}} <: RegExpr
+	lang1 :: T
+	lang2 :: M
+end
+
+# ╔═╡ a2dad6a6-da8d-4980-977e-5a64f840d05f
+struct Lang <: RegExpr
 	lang :: Language
 end
 
-# ╔═╡ d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
-struct 𝜖NFA <: FA
-	Q :: Set{State}
-	Σ :: Set{Symbol}
-	δ :: Dict{
-			Union{Tuple{State,Symbol}, Word}, # state-symbol pair or empty word
-			Set{State}
-	}
-	q0 :: State
-	F :: Set{State}
-end
+# ╔═╡ df4186f1-a2d5-4fde-8561-cb45c7da44d7
+# function Base.show(io::IO, expr::Language)
+# 	expr = sort(collect(expr))
+# 	res = "{"
+# 	for elem in 1:length(expr)-1
+# 		res *= expr[elem] * ", "
+# 	end
+# 	res *= last(expr) * "}"
+# 	print(res)
+# end
+
+# ╔═╡ 69960128-6005-46f2-a472-b00ab0d6abe7
+# function Base.show(io::IO, expr::KleeneClosure)
+# 	if isa(expr.lang, Language)
+# 		print(collect(expr.lang))
+# 	else
+# 		print("{$(expr.lang)}*")
+# 	end
+# end
+
+# ╔═╡ 0df007a2-7553-43a6-991f-815704a29985
+# function Base.show(io::IO, expr::Epsilon)
+# 	print(collect(expr.lang))
+# end
+
+# ╔═╡ 08d2ba43-fd3c-481e-b18b-f100bccd033e
+# function Base.show(io::IO, expr::Concatenation)
+# 	print("$(string(expr.lang1))$(string(expr.lang2))")
+# end
+
+# ╔═╡ 1788b455-4444-4a7e-b830-a439dc9fba6a
+# function Base.show(io::IO, expr::LangUnion)
+# 	print("$(string(expr.lang1))+$(string(expr.lang2))")
+# end
+
+# ╔═╡ 5d8d5a1c-8044-4a0f-aa51-ed0de32b1922
+lang = Set(["a","c","b"])
+
+# ╔═╡ db54fa24-6bbf-46b8-bd8c-6bb571bc54bf
+reg = LangUnion(lang, lang)
+
+# ╔═╡ 9c51fca8-7a68-4d9e-a1a9-f0ebd920e1a2
+# ╠═╡ disabled = true
+#=╠═╡
+b = string(lang)
+  ╠═╡ =#
+
+# ╔═╡ f8ea5ba5-9d3c-4bf8-8cc8-d9426586f3b3
+display(reg)
+
+# ╔═╡ a0725261-d883-4f5d-9285-b2ae3aac85ee
+# ╠═╡ disabled = true
+#=╠═╡
+a = Set([1,2,3])
+  ╠═╡ =#
 
 # ╔═╡ bb538110-b40e-4f2a-b608-d84029b03101
 transition_diagram(automata)
@@ -306,6 +359,267 @@ graph
 
 # ╔═╡ 14d452a8-9688-4c91-99f1-199d07c19d9d
 δ(automata, 1, "c")
+
+# ╔═╡ ac26115c-994c-4d26-8cd3-1d0173ff0963
+md"""
+# Context Free Grammars (CFG)
+Formally represented by 4-tuple (V, T, P, S) where:
+
+* V = finite set of variables
+* T = finite set of terminals
+* P = finite set of productions
+* S = a special variable called start symbol
+
+V and T are disjoint sets.
+Production p ∈ P is of the form A → α where A ∈ V, α ∈ $(V ∪ T)^*$.
+"""
+
+# ╔═╡ d60401e4-68c1-46eb-a058-198bc07cc038
+md"""
+Let's define some aliases for our new object:
+"""
+
+# ╔═╡ 7183663f-f34d-4fed-ac6d-9497a59684ef
+begin
+	Productions = Dict{Word, Vector{Vector{Word}}}
+end;
+
+# ╔═╡ a671e43e-b047-40be-aa86-033cb2d9f189
+md"""
+We will represent CFG in code as follows:
+"""
+
+# ╔═╡ 58fbc0f0-129f-40c4-86d4-62e08800135d
+struct CFG
+	V :: Set{Word}
+	T :: Set{Word}
+	P :: Productions
+	S :: Word
+end
+
+# ╔═╡ d3d284f6-bd4c-409a-b7df-6273cc80205d
+md"""
+Here is a construction of a CFG in example 4.4 on page 83:
+"""
+
+# ╔═╡ 561f049e-6e70-4321-805f-0d4ecd95117d
+begin
+	variables = Set(["S", "A"])
+	terminals = Set(["a", "b"])
+	productions = Dict([
+		"S" => [["a", "A", "S"], ["a"]],
+		"A" => [["S","b","A"], ["S", "S"], ["b","a"]]
+	])
+	start_symbol = "S"
+	G = CFG(variables, terminals, productions, start_symbol)
+end
+
+# ╔═╡ 111de558-02ad-4555-bedc-93061494f49a
+function deriv(cfg::CFG, word::Word, prod::Tuple{Word, Int64})
+	var = prod[1]
+	index = findfirst(var, word)[1]
+	return word[1:index-1] * join(cfg.P[var][prod[2]]) * word[index+1:end]
+end
+
+# ╔═╡ a9838ecf-a01a-43ea-a954-c17449d8217e
+word = "Saa"
+
+# ╔═╡ d28b7d98-aec7-4434-b679-cb7154b858f2
+deriv(G, word, ("S", 1))
+
+# ╔═╡ 4a6b124f-ab81-4703-b281-87e76a224406
+md"""
+# Derivation Tree
+"""
+
+# ╔═╡ 84360a9e-5267-4b46-bc5f-c2165ee7603f
+struct DerivTree
+	name :: Word
+	children :: Vector{DerivTree}
+end
+
+# ╔═╡ 2a61b7ea-0030-4df5-98c4-9184b44c3768
+md"""
+Example of derivation tree from example 4.4 on page 83:
+"""
+
+# ╔═╡ d93649e0-1336-424a-ac22-238713376cf6
+begin
+	DT = DerivTree
+	dtG = DT("S", 
+		[
+			DT("a",[]),
+			DT("A", [
+				DT("S",[
+					DT("a", []),
+				]),
+				DT("b", []),
+				DT("A", [
+					DT("b", []),
+					DT("a", [])
+				])
+			]),
+			DT("S", [
+				DT("a",[])
+			])
+		]
+	)
+end
+
+# ╔═╡ 4d1cc7d4-95c3-466a-9d0d-234031ca7782
+md"""
+Wow, that was quite tedious. Fortunately parsers can do this for us and break down input strings to their parse tree representations automatically. Let's see which string does this derivation tree yield:
+"""
+
+# ╔═╡ 69079142-2dfe-4a1d-a53e-aace60c59e7b
+function yield(dt::DerivTree)
+	if length(dt.children) == 0
+		return dt.name
+	else
+		return join([yield(child) for child in dt.children])
+	end
+end
+
+# ╔═╡ 3ac441a1-76a0-4451-b8ac-c17588411a8d
+yield(dtG)
+
+# ╔═╡ 1038ab6d-a743-4864-96fa-1e3fecc226c8
+function plot(dt::DerivTree)
+end
+
+# ╔═╡ 30bb8699-7c8c-4399-98a6-229b5f8f6423
+move(word::String) = last(word,length(word)-1)
+
+# ╔═╡ ec29b4d1-ff98-40db-a965-fcad0ff9de90
+function term(word::Word)
+	lang = Epsilon()
+	if length(word) > 0
+		fst = first(word)
+		if isdigit(fst) || islowercase(fst) || isuppercase(fst)
+			lang = Lang(Set([string(first(word))]))
+			word = move(word)
+		elseif first(word) == '('
+			word = move(word)
+			word, lang = expression(word)
+			if first(word) == ')'
+				word = move(word)
+			else
+				error("Parse error.")
+			end
+		end
+	end
+	while length(word) > 0 && first(word) == '*'
+		word = move(word)
+		lang = KleeneClosure(lang)
+	end
+	return word, lang
+end
+
+# ╔═╡ 49d2a3fa-d81c-427d-98c6-7e5a65e38c8e
+function product(word::Word)
+	word, lang = term(word)
+	while length(word) > 0 && first(word) == '⋅'
+		word = move(word)
+		word, lang2 = term(word)
+		lang = Concatenation(lang, lang2)
+	end
+	return word, lang
+end
+
+# ╔═╡ 72ac17e0-10d0-4a48-b715-207af48afca4
+function expression(word::Word)
+	word, lang = product(word)
+	while length(word) > 0 && first(word) == '+'
+		word = move(word)
+		word, lang2 = product(word)
+		lang = LangUnion(lang, lang2)
+	end
+	return word, lang
+end
+
+# ╔═╡ bef24494-2d96-4c30-8635-ba0245285556
+regex_parse(expr :: Word) = expression(expr)[2]
+
+# ╔═╡ 0c368b2f-31a0-490d-8574-d43180aa49e9
+a = "a⋅A⋅(0+A)*"
+
+# ╔═╡ 07e4cfd2-fec0-4eeb-b28b-43ef25f4ea2f
+string(a)
+
+# ╔═╡ e895b0e0-2405-4bf3-a1ef-f0b0f4d7b69d
+print(sort(collect(a)))
+
+# ╔═╡ 321de78e-681f-470f-b9eb-ca9030f9cb57
+c = regex_parse(a)
+
+# ╔═╡ 66f47fcb-48a0-45c1-8b2f-7c0d4dc0f3f4
+typeof(c)
+
+# ╔═╡ 29e1051e-0f61-4bc0-9996-0a34d51b4476
+function convert(enfa::𝜖NFA, expr::RegExpr)
+	
+end
+
+# ╔═╡ d0e5cbf3-1cc4-4685-9efe-8c45dd99a710
+function convert(enfa::𝜖NFA, expr::Lang)
+
+end
+
+# ╔═╡ cd92e57e-fd5f-49d3-bb66-fb60a3087e31
+function convert(enfa::𝜖NFA, expr::KleeneClosure)
+
+end
+
+# ╔═╡ d7bcae00-b1ac-4c3d-81f3-827f87d75a4d
+function convert(enfa::𝜖NFA, expr::LangUnion)
+
+end
+
+# ╔═╡ 50d253f7-8309-4503-8823-2f691f89ea7d
+function convert(enfa::𝜖NFA, expr::Concatenation)
+		Q
+		Σ
+		δ
+		q0
+		F
+end
+
+# ╔═╡ 4343774c-8dde-428a-bf55-5ba6845963e2
+function rename(enfa::𝜖NFA, char::Char)
+	len = length(enfa.Q)
+	vect = collect(enfa.Q)
+	nvect = ["$(char)$(i)" for i = 1:len]
+	subs = Dict(zip(vect, nvect))
+	
+end
+
+# ╔═╡ 3a8686c4-05b3-48a3-8ee8-ffd751c1868d
+collect(Set([1,2,3]))
+
+# ╔═╡ 2afa1973-6128-4cd2-a0df-a860fbf15d29
+struct 𝜖NFA <: FA
+	Q :: Set{State}
+	Σ :: Set{Symbol}
+	δ :: Dict{
+			Union{Tuple{State,Symbol}, Word}, # state-symbol pair or empty word
+			Set{State}
+	}
+	q0 :: State
+	F :: Set{State}
+end
+
+# ╔═╡ d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
+struct 𝜖NFA <: FA
+	Q :: Set{State}
+	Σ :: Set{Symbol}
+	δ :: Dict{
+			Union{Tuple{State,Symbol}, Word}, # state-symbol pair or empty word
+			Set{State}
+	}
+	q0 :: State
+	F :: Set{State}
+end
+# 𝜖 is \itepsilon
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -396,12 +710,6 @@ deps = ["Compat", "LinearAlgebra", "SparseArrays"]
 git-tree-sha1 = "c6d890a52d2c4d55d326439580c3b8d0875a77d9"
 uuid = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 version = "1.15.7"
-
-[[deps.ChangesOfVariables]]
-deps = ["LinearAlgebra", "Test"]
-git-tree-sha1 = "f84967c4497e0e1955f9a582c232b02847c5f589"
-uuid = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
-version = "0.1.7"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -684,12 +992,6 @@ git-tree-sha1 = "721ec2cf720536ad005cb38f50dbba7b02419a15"
 uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 version = "0.14.7"
 
-[[deps.InverseFunctions]]
-deps = ["Test"]
-git-tree-sha1 = "6667aadd1cdee2c6cd068128b3d226ebc4fb0c67"
-uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
-version = "0.1.9"
-
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "630b497eafcc20001bba38a4651b327dcfc491d2"
 uuid = "92d709cd-6900-40b7-9082-c6be49f344b6"
@@ -845,12 +1147,16 @@ deps = ["DocStringExtensions", "IrrationalConstants", "LinearAlgebra"]
 git-tree-sha1 = "0a1b7c2863e44523180fdb3146534e265a91870b"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 version = "0.3.23"
-weakdeps = ["ChainRulesCore", "ChangesOfVariables", "InverseFunctions"]
 
     [deps.LogExpFunctions.extensions]
     LogExpFunctionsChainRulesCoreExt = "ChainRulesCore"
     LogExpFunctionsChangesOfVariablesExt = "ChangesOfVariables"
     LogExpFunctionsInverseFunctionsExt = "InverseFunctions"
+
+    [deps.LogExpFunctions.weakdeps]
+    ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
+    ChangesOfVariables = "9e997f8a-9a97-42d5-a9f1-ce6bfc15e2c0"
+    InverseFunctions = "3587e190-3f89-42d0-90ee-14403ec27112"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -1534,16 +1840,63 @@ version = "1.4.1+0"
 # ╠═d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
 # ╟─8604a238-25d4-466f-ba58-dbdd2fe657c5
 # ╠═1a54e71e-ccb6-4a14-91cd-0544666b1bc5
-# ╠═e2c14927-588b-423e-b18f-5336e4d77c98
+# ╟─e2c14927-588b-423e-b18f-5336e4d77c98
 # ╠═6745bf74-755c-4c9c-874e-e72772d68fd8
 # ╠═ab41db78-7e4a-4e0e-b7e6-545afcfb8b6f
 # ╠═3478b0ad-3359-4168-a744-0c43e42cb867
 # ╠═5c105dd8-6c9a-47cb-9598-d2f57933df29
+# ╠═a2dad6a6-da8d-4980-977e-5a64f840d05f
+# ╠═df4186f1-a2d5-4fde-8561-cb45c7da44d7
+# ╠═69960128-6005-46f2-a472-b00ab0d6abe7
+# ╠═0df007a2-7553-43a6-991f-815704a29985
+# ╠═08d2ba43-fd3c-481e-b18b-f100bccd033e
+# ╠═1788b455-4444-4a7e-b830-a439dc9fba6a
+# ╠═5d8d5a1c-8044-4a0f-aa51-ed0de32b1922
+# ╠═db54fa24-6bbf-46b8-bd8c-6bb571bc54bf
+# ╠═9c51fca8-7a68-4d9e-a1a9-f0ebd920e1a2
+# ╠═f8ea5ba5-9d3c-4bf8-8cc8-d9426586f3b3
+# ╠═a0725261-d883-4f5d-9285-b2ae3aac85ee
+# ╠═07e4cfd2-fec0-4eeb-b28b-43ef25f4ea2f
+# ╠═e895b0e0-2405-4bf3-a1ef-f0b0f4d7b69d
 # ╠═bb538110-b40e-4f2a-b608-d84029b03101
 # ╟─38eeeab0-7390-4ecb-8649-a215db54bdf9
 # ╟─d5e8a30e-7c02-4488-9b76-c433bfc47af3
 # ╠═d1325a74-acbc-40ad-9cdd-d5c723d1b38e
 # ╠═ab37b446-9ae2-43f2-8ad2-23c955bef5e2
 # ╠═14d452a8-9688-4c91-99f1-199d07c19d9d
+# ╟─ac26115c-994c-4d26-8cd3-1d0173ff0963
+# ╟─d60401e4-68c1-46eb-a058-198bc07cc038
+# ╠═7183663f-f34d-4fed-ac6d-9497a59684ef
+# ╟─a671e43e-b047-40be-aa86-033cb2d9f189
+# ╠═58fbc0f0-129f-40c4-86d4-62e08800135d
+# ╟─d3d284f6-bd4c-409a-b7df-6273cc80205d
+# ╠═561f049e-6e70-4321-805f-0d4ecd95117d
+# ╠═111de558-02ad-4555-bedc-93061494f49a
+# ╠═a9838ecf-a01a-43ea-a954-c17449d8217e
+# ╠═d28b7d98-aec7-4434-b679-cb7154b858f2
+# ╟─4a6b124f-ab81-4703-b281-87e76a224406
+# ╠═84360a9e-5267-4b46-bc5f-c2165ee7603f
+# ╟─2a61b7ea-0030-4df5-98c4-9184b44c3768
+# ╠═d93649e0-1336-424a-ac22-238713376cf6
+# ╟─4d1cc7d4-95c3-466a-9d0d-234031ca7782
+# ╠═69079142-2dfe-4a1d-a53e-aace60c59e7b
+# ╠═3ac441a1-76a0-4451-b8ac-c17588411a8d
+# ╠═1038ab6d-a743-4864-96fa-1e3fecc226c8
+# ╠═bef24494-2d96-4c30-8635-ba0245285556
+# ╠═72ac17e0-10d0-4a48-b715-207af48afca4
+# ╠═49d2a3fa-d81c-427d-98c6-7e5a65e38c8e
+# ╠═ec29b4d1-ff98-40db-a965-fcad0ff9de90
+# ╠═30bb8699-7c8c-4399-98a6-229b5f8f6423
+# ╠═0c368b2f-31a0-490d-8574-d43180aa49e9
+# ╠═321de78e-681f-470f-b9eb-ca9030f9cb57
+# ╠═66f47fcb-48a0-45c1-8b2f-7c0d4dc0f3f4
+# ╠═29e1051e-0f61-4bc0-9996-0a34d51b4476
+# ╠═d0e5cbf3-1cc4-4685-9efe-8c45dd99a710
+# ╠═cd92e57e-fd5f-49d3-bb66-fb60a3087e31
+# ╠═d7bcae00-b1ac-4c3d-81f3-827f87d75a4d
+# ╠═50d253f7-8309-4503-8823-2f691f89ea7d
+# ╠═2afa1973-6128-4cd2-a0df-a860fbf15d29
+# ╠═4343774c-8dde-428a-bf55-5ba6845963e2
+# ╠═3a8686c4-05b3-48a3-8ee8-ffd751c1868d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
