@@ -362,36 +362,114 @@ end
 # ╔═╡ 950ce579-ecb4-49a1-bb8e-c8b37c3cc3dc
 begin
 
-function rename(enfa::𝜖NFA, char::Char)
+rename_key(key, subs) = (subs[key[1]], key[2])
+rename_keys(keys, subs) = [rename_key(key, subs) for key in keys]
+rename_val(val, subs) = Set([subs[state] for state in val])
+rename_vals(vals, subs) = [rename_val(val, subs) for val in collect(vals)]
+	
+function rename_transitions(transitions , subs)
+	Dict(rename_keys(
+		keys(transitions), subs) .=> rename_vals(values(transitions), subs)
+	)
+end
+
+function rename(enfa::𝜖NFA, char::String, start::Int)
 	states = collect(enfa.Q)
 	len = Base.length(states)
-	nvect = ["$(char)$(i)" for i = 1:len]
+	nvect = ["$(char)$(i+start)" for i = 1:len]
 	subs = Dict(zip(states, nvect))
+
+	Q = Set([subs[state] for state in collect(enfa.Q)])
+	Σ = enfa.Σ
+	δ = rename_transitions(enfa.δ, subs)
+	q0 = subs[enfa.q0]
+	F = Set([subs[state] for state in collect(enfa.F)])
+	return 𝜖NFA(Q, Σ, δ, q0, F)
 end
+rename(enfa::𝜖NFA, char::String) = rename(enfa, char, 0)
 	
 function convert(::Type{𝜖NFA}, expr::REGEX.Epsilon)
-		Q = Set(["q0"])
-		Σ = Set([])
-		δ = Dict()
-		q0 = "q0"
-		F = Q
-		return 𝜖NFA(Q, Σ, δ, q0, F)
+	Q = Set(["q0"])
+	Σ = Set([])
+	δ = Dict()
+	q0 = "q0"
+	F = Q
+	return 𝜖NFA(Q, Σ, δ, q0, F)
 end
 
 function convert(::Type{𝜖NFA}, expr::REGEX.Symbol)
-		a = expr.symbol[1]
-		Q = Set(["q0", "qf"])
-		Σ = Set([a])
-		δ = Dict(("q0", a) => Set(["qf"]))
-		q0 = "q0"
-		F = Set(["qf"])
-		return 𝜖NFA(Q, Σ, δ, q0, F)
+	a = expr.symbol[1]
+	Q = Set(["q0", "qf"])
+	Σ = Set([a])
+	δ = Dict(("q0", a) => Set(["qf"]))
+	q0 = "q0"
+	F = Set(["qf"])
+	return 𝜖NFA(Q, Σ, δ, q0, F)
 end
+
+function convert(::Type{𝜖NFA}, expr::REGEX.Concatenation)
+	a = convert(𝜖NFA, expr.lang1)
+	b = convert(𝜖NFA, expr.lang2)
+	len_a = Base.length(a.Q)
+	len_b = Base.length(b.Q)
+
+	a = rename(a, "q")
+	b = rename(b, "q", len_a)
+
+	Q = union(a.Q, b.Q)
+	Σ = union(a.Σ, b.Σ)
+	δ = merge(a.δ, b.δ, Dict((first(collect(a.F)) , "") => Set([b.q0])))
+	q0 = a.q0
+	F = b.F
+	return 𝜖NFA(Q, Σ, δ, q0, F)
+end
+
+function convert(::Type{𝜖NFA}, expr::REGEX.Union)
+	a = convert(𝜖NFA, expr.lang1)
+	b = convert(𝜖NFA, expr.lang2)
+	len_a = Base.length(a.Q)
+	len_b = Base.length(b.Q)
+
+	a = rename(a, "q")
+	b = rename(b, "q", len_a)
+
+	Q = union(a.Q, b.Q, Set(["q0", "q$(len_a+1)"]))
+	Σ = union(a.Σ, b.Σ)
+	δ = merge(a.δ, b.δ, 
+		Dict(
+			("q0" , "") => Set([a.q0, b.q0]),
+			(first(collect(a.F)) , "") => Set(["q$(len_a+1)"]),
+			(first(collect(b.F)) , "") => Set(["q$(len_a+1)"]),
+		)
+	)
+	q0 = "q0"
+	F = Set(["q$(len_a+1)"])
+	return 𝜖NFA(Q, Σ, δ, q0, F)
+end
+
+function convert(::Type{𝜖NFA}, expr::REGEX.KleeneClosure)
+	a = convert(𝜖NFA, expr.lang)
+	len_a = Base.length(a.Q)
+
+	a = rename(a, "q")
+
+	Q = union(a.Q, Set(["q0", "q$(len_a+1)"]))
+	Σ = a.Σ
+	δ = merge(a.δ, 
+		Dict(
+			("q0" , "") => Set([a.q0, "q$(len_a+1)"]),
+			(first(collect(a.F)) , "") => Set([a.q0, "q$(len_a+1)"]),
+		)
+	)
+	q0 = "q0"
+	F = Set(["q$(len_a+1)"])
+	return 𝜖NFA(Q, Σ, δ, q0, F)
+end	
 	
 end
 
 # ╔═╡ 6e56ab42-82ff-484e-a0d1-8de1e89821f9
-convert(𝜖NFA, REGEX.Symbol('a'))
+convert(𝜖NFA, REGEX.parse("A⋅(0+A)*"))
 
 # ╔═╡ df4186f1-a2d5-4fde-8561-cb45c7da44d7
 # function Base.show(io::IO, expr::Language)
@@ -625,7 +703,7 @@ a = Set([1,2,3])
 
 # ╔═╡ 0d0459f6-f921-4d4d-ac7c-fb121b9b4058
 begin
-a = "a⋅A⋅(0+A)* +𝜖"
+a = "a⋅A⋅(0+A)*+𝜖"
 c = REGEX.parse(a)
 end
 
