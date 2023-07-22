@@ -69,6 +69,29 @@ struct DFA <: FA # DFA = deterministic finite automata
 	F :: Set{State}
 end
 
+# ╔═╡ 5f52b01e-243a-475a-9583-afc7bc31bd60
+md"""
+Let's construct the transition function δ for a DFA that accepts a current state and a symbol and moves the automata to the next state.
+"""
+
+# ╔═╡ ee2b299b-8ff7-4c90-9e82-0cd3b5eb835a
+function δ(automata::DFA, state::State, symbol::Symbol)
+	return automata.δ[(state, symbol)]
+end
+
+# ╔═╡ 4bc35f6c-c01b-46be-834b-e00c050cfb2a
+md"""
+We can simply extend the transition function δ such that it accepts words.
+"""
+
+# ╔═╡ 3c3da943-5661-4fa3-a3f0-dbd90ed63a1f
+md"""
+DFA _accepts_ a word if and only if the δ(q0, word) ∈ F. We can check whether a word is accepted algorithmically this way:
+"""
+
+# ╔═╡ e26eda4d-1aad-44ff-a657-4320a07c8ddd
+length(automata::FA) = Base.length(FA.Q)
+
 # ╔═╡ 6920938e-35c1-4ad6-afdc-7074b6c14864
 begin
 	function transition_diagram(automata::DFA, state::Int64 = automata.q0)
@@ -124,21 +147,6 @@ begin
 	end
 end;
 
-# ╔═╡ 5f52b01e-243a-475a-9583-afc7bc31bd60
-md"""
-Let's construct the transition function δ for a DFA that accepts a current state and a symbol and moves the automata to the next state.
-"""
-
-# ╔═╡ ee2b299b-8ff7-4c90-9e82-0cd3b5eb835a
-function δ(automata::DFA, state::State, symbol::Symbol)
-	return automata.δ[(state, symbol)]
-end
-
-# ╔═╡ 4bc35f6c-c01b-46be-834b-e00c050cfb2a
-md"""
-We can simply extend the transition function δ such that it accepts words.
-"""
-
 # ╔═╡ f97e7bdf-231f-4430-9b05-ecc01bcaca10
 function δ(automata::DFA, state::State, word::Word)
 	if length(word) > 1
@@ -149,11 +157,6 @@ function δ(automata::DFA, state::State, word::Word)
 		return δ(automata, state, first(word))
 	end
 end
-
-# ╔═╡ 3c3da943-5661-4fa3-a3f0-dbd90ed63a1f
-md"""
-DFA _accepts_ a word if and only if the δ(q0, word) ∈ F. We can check whether a word is accepted algorithmically this way:
-"""
 
 # ╔═╡ 36e2df5e-3515-46c9-8b30-dc409e0cb444
 function accepts(automata::DFA, word::String)
@@ -267,42 +270,128 @@ md"""
 To avoid parsing the expression that denotes a regular expression. We will be using full bracketing of the expression.
 """
 
-# ╔═╡ 1a54e71e-ccb6-4a14-91cd-0544666b1bc5
+# ╔═╡ 3699204b-7ae6-4af5-afa8-f7501e5d8451
+module REGEX
+
 abstract type RegExpr end
+Word = String
+Language = Set{Word}
 
-# ╔═╡ e2c14927-588b-423e-b18f-5336e4d77c98
-md"""
-Let's define the three basic regular expressions that occur in the book.
-"""
-
-# ╔═╡ 6745bf74-755c-4c9c-874e-e72772d68fd8
 struct Epsilon <: RegExpr
 	lang :: Language
 
 	Epsilon() = new(Set([""]))
 end
 
-# ╔═╡ ab41db78-7e4a-4e0e-b7e6-545afcfb8b6f
-struct KleeneClosure{T <: Union{RegExpr, Language}} <: RegExpr
-	lang :: T
+struct KleeneClosure <: RegExpr
+	lang :: RegExpr
 end
 
-# ╔═╡ 3478b0ad-3359-4168-a744-0c43e42cb867
-struct Concatenation{T, M <: Union{RegExpr, Language}} <: RegExpr
-	lang1 :: T
-	lang2 :: M
+struct Concatenation <: RegExpr
+	lang1 :: RegExpr
+	lang2 :: RegExpr
 end
 
-# ╔═╡ 5c105dd8-6c9a-47cb-9598-d2f57933df29
-struct LangUnion{T, M <: Union{RegExpr, Language}} <: RegExpr
-	lang1 :: T
-	lang2 :: M
+struct Union <: RegExpr
+	lang1 :: RegExpr
+	lang2 :: RegExpr
 end
 
-# ╔═╡ a2dad6a6-da8d-4980-977e-5a64f840d05f
-struct Lang <: RegExpr
-	lang :: Language
+struct Symbol <: RegExpr
+	symbol :: Word
+
+	Symbol(a::Char) = new(string(a))
+	Symbol(a::String) = new(a)
 end
+
+remove_space(a) = filter(x -> !isspace(x), a)
+parse(expr :: String) = expression(remove_space(expr))[2]
+move(word::String) = last(word,length(word)-1)
+
+
+function expression(word::Word)
+	word, lang = product(word)
+	while length(word) > 0 && first(word) == '+'
+		word = move(word)
+		word, lang2 = product(word)
+		lang = REGEX.Union(lang, lang2)
+	end
+	return word, lang
+end
+
+function product(word::Word)
+	word, lang = term(word)
+	while length(word) > 0 && first(word) == '⋅'
+		word = move(word)
+		word, lang2 = term(word)
+		lang = REGEX.Concatenation(lang, lang2)
+	end
+	return word, lang
+end
+
+function term(word::Word)
+	lang = Epsilon()
+	if length(word) > 0
+		fst = first(word)
+		if isdigit(fst) || islowercase(fst) || isuppercase(fst)
+			if fst == '𝜖'
+				lang = REGEX.Epsilon()
+			else
+				lang = REGEX.Symbol(string(fst))
+			end
+			word = move(word)
+		elseif first(word) == '('
+			word = move(word)
+			word, lang = expression(word)
+			if first(word) == ')'
+				word = move(word)
+			else
+				error("Parse error.")
+			end
+		end
+	end
+	while length(word) > 0 && first(word) == '*'
+		word = move(word)
+		lang = REGEX.KleeneClosure(lang)
+	end
+	return word, lang
+end
+
+end
+
+# ╔═╡ 950ce579-ecb4-49a1-bb8e-c8b37c3cc3dc
+begin
+
+function rename(enfa::𝜖NFA, char::Char)
+	states = collect(enfa.Q)
+	len = Base.length(states)
+	nvect = ["$(char)$(i)" for i = 1:len]
+	subs = Dict(zip(states, nvect))
+end
+	
+function convert(::Type{𝜖NFA}, expr::REGEX.Epsilon)
+		Q = Set(["q0"])
+		Σ = Set([])
+		δ = Dict()
+		q0 = "q0"
+		F = Q
+		return 𝜖NFA(Q, Σ, δ, q0, F)
+end
+
+function convert(::Type{𝜖NFA}, expr::REGEX.Symbol)
+		a = expr.symbol[1]
+		Q = Set(["q0", "qf"])
+		Σ = Set([a])
+		δ = Dict(("q0", a) => Set(["qf"]))
+		q0 = "q0"
+		F = Set(["qf"])
+		return 𝜖NFA(Q, Σ, δ, q0, F)
+end
+	
+end
+
+# ╔═╡ 6e56ab42-82ff-484e-a0d1-8de1e89821f9
+convert(𝜖NFA, REGEX.Symbol('a'))
 
 # ╔═╡ df4186f1-a2d5-4fde-8561-cb45c7da44d7
 # function Base.show(io::IO, expr::Language)
@@ -354,11 +443,11 @@ b = string(lang)
 # ╔═╡ f8ea5ba5-9d3c-4bf8-8cc8-d9426586f3b3
 display(reg)
 
-# ╔═╡ a0725261-d883-4f5d-9285-b2ae3aac85ee
-# ╠═╡ disabled = true
-#=╠═╡
-a = Set([1,2,3])
-  ╠═╡ =#
+# ╔═╡ 07e4cfd2-fec0-4eeb-b28b-43ef25f4ea2f
+string(a)
+
+# ╔═╡ e895b0e0-2405-4bf3-a1ef-f0b0f4d7b69d
+print(sort(collect(a)))
 
 # ╔═╡ bb538110-b40e-4f2a-b608-d84029b03101
 transition_diagram(automata)
@@ -528,114 +617,17 @@ yield(dtG)
 function plot(dt::DerivTree)
 end
 
-# ╔═╡ 30bb8699-7c8c-4399-98a6-229b5f8f6423
-move(word::String) = last(word,length(word)-1)
+# ╔═╡ a0725261-d883-4f5d-9285-b2ae3aac85ee
+# ╠═╡ disabled = true
+#=╠═╡
+a = Set([1,2,3])
+  ╠═╡ =#
 
-# ╔═╡ ec29b4d1-ff98-40db-a965-fcad0ff9de90
-function term(word::Word)
-	lang = Epsilon()
-	if length(word) > 0
-		fst = first(word)
-		if isdigit(fst) || islowercase(fst) || isuppercase(fst)
-			lang = Lang(Set([string(first(word))]))
-			word = move(word)
-		elseif first(word) == '('
-			word = move(word)
-			word, lang = expression(word)
-			if first(word) == ')'
-				word = move(word)
-			else
-				error("Parse error.")
-			end
-		end
-	end
-	while length(word) > 0 && first(word) == '*'
-		word = move(word)
-		lang = KleeneClosure(lang)
-	end
-	return word, lang
+# ╔═╡ 0d0459f6-f921-4d4d-ac7c-fb121b9b4058
+begin
+a = "a⋅A⋅(0+A)* +𝜖"
+c = REGEX.parse(a)
 end
-
-# ╔═╡ 49d2a3fa-d81c-427d-98c6-7e5a65e38c8e
-function product(word::Word)
-	word, lang = term(word)
-	while length(word) > 0 && first(word) == '⋅'
-		word = move(word)
-		word, lang2 = term(word)
-		lang = Concatenation(lang, lang2)
-	end
-	return word, lang
-end
-
-# ╔═╡ 72ac17e0-10d0-4a48-b715-207af48afca4
-function expression(word::Word)
-	word, lang = product(word)
-	while length(word) > 0 && first(word) == '+'
-		word = move(word)
-		word, lang2 = product(word)
-		lang = LangUnion(lang, lang2)
-	end
-	return word, lang
-end
-
-# ╔═╡ bef24494-2d96-4c30-8635-ba0245285556
-regex_parse(expr :: Word) = expression(expr)[2]
-
-# ╔═╡ 0c368b2f-31a0-490d-8574-d43180aa49e9
-a = "a⋅A⋅(0+A)*"
-
-# ╔═╡ 07e4cfd2-fec0-4eeb-b28b-43ef25f4ea2f
-string(a)
-
-# ╔═╡ e895b0e0-2405-4bf3-a1ef-f0b0f4d7b69d
-print(sort(collect(a)))
-
-# ╔═╡ 321de78e-681f-470f-b9eb-ca9030f9cb57
-c = regex_parse(a)
-
-# ╔═╡ 66f47fcb-48a0-45c1-8b2f-7c0d4dc0f3f4
-typeof(c)
-
-# ╔═╡ 29e1051e-0f61-4bc0-9996-0a34d51b4476
-function convert(enfa::𝜖NFA, expr::RegExpr)
-	
-end
-
-# ╔═╡ d0e5cbf3-1cc4-4685-9efe-8c45dd99a710
-function convert(enfa::𝜖NFA, expr::Lang)
-
-end
-
-# ╔═╡ cd92e57e-fd5f-49d3-bb66-fb60a3087e31
-function convert(enfa::𝜖NFA, expr::KleeneClosure)
-
-end
-
-# ╔═╡ d7bcae00-b1ac-4c3d-81f3-827f87d75a4d
-function convert(enfa::𝜖NFA, expr::LangUnion)
-
-end
-
-# ╔═╡ 50d253f7-8309-4503-8823-2f691f89ea7d
-function convert(enfa::𝜖NFA, expr::Concatenation)
-		Q
-		Σ
-		δ
-		q0
-		F
-end
-
-# ╔═╡ 4343774c-8dde-428a-bf55-5ba6845963e2
-function rename(enfa::𝜖NFA, char::Char)
-	len = length(enfa.Q)
-	vect = collect(enfa.Q)
-	nvect = ["$(char)$(i)" for i = 1:len]
-	subs = Dict(zip(vect, nvect))
-	
-end
-
-# ╔═╡ 3a8686c4-05b3-48a3-8ee8-ffd751c1868d
-collect(Set([1,2,3]))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -657,7 +649,7 @@ PlutoUI = "~0.7.51"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.1"
+julia_version = "1.9.2"
 manifest_format = "2.0"
 project_hash = "4f10380c8d3ae3ddd6a6e557c2caab3722010d14"
 
@@ -770,7 +762,7 @@ weakdeps = ["Dates", "LinearAlgebra"]
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.0.2+0"
+version = "1.0.5+0"
 
 [[deps.ConcurrentUtilities]]
 deps = ["Serialization", "Sockets"]
@@ -1319,7 +1311,7 @@ version = "0.40.1+0"
 [[deps.Pkg]]
 deps = ["Artifacts", "Dates", "Downloads", "FileWatching", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Serialization", "TOML", "Tar", "UUIDs", "p7zip_jll"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-version = "1.9.0"
+version = "1.9.2"
 
 [[deps.PlotThemes]]
 deps = ["PlotUtils", "Statistics"]
@@ -1849,6 +1841,7 @@ version = "1.4.1+0"
 # ╠═f97e7bdf-231f-4430-9b05-ecc01bcaca10
 # ╟─3c3da943-5661-4fa3-a3f0-dbd90ed63a1f
 # ╠═36e2df5e-3515-46c9-8b30-dc409e0cb444
+# ╠═e26eda4d-1aad-44ff-a657-4320a07c8ddd
 # ╠═8cc13850-e8d3-11ed-2309-8f80bad85bd2
 # ╟─a020300f-054f-40f2-bbc0-f2519bcb5aac
 # ╠═6784b1b4-793d-42e7-8319-2d94a7f71eb2
@@ -1856,13 +1849,10 @@ version = "1.4.1+0"
 # ╠═d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
 # ╠═a6323c56-c93f-41ff-b18b-0fe8e0cdc166
 # ╟─8604a238-25d4-466f-ba58-dbdd2fe657c5
-# ╠═1a54e71e-ccb6-4a14-91cd-0544666b1bc5
-# ╟─e2c14927-588b-423e-b18f-5336e4d77c98
-# ╠═6745bf74-755c-4c9c-874e-e72772d68fd8
-# ╠═ab41db78-7e4a-4e0e-b7e6-545afcfb8b6f
-# ╠═3478b0ad-3359-4168-a744-0c43e42cb867
-# ╠═5c105dd8-6c9a-47cb-9598-d2f57933df29
-# ╠═a2dad6a6-da8d-4980-977e-5a64f840d05f
+# ╠═3699204b-7ae6-4af5-afa8-f7501e5d8451
+# ╠═0d0459f6-f921-4d4d-ac7c-fb121b9b4058
+# ╠═950ce579-ecb4-49a1-bb8e-c8b37c3cc3dc
+# ╠═6e56ab42-82ff-484e-a0d1-8de1e89821f9
 # ╠═df4186f1-a2d5-4fde-8561-cb45c7da44d7
 # ╠═69960128-6005-46f2-a472-b00ab0d6abe7
 # ╠═0df007a2-7553-43a6-991f-815704a29985
@@ -1899,20 +1889,5 @@ version = "1.4.1+0"
 # ╠═69079142-2dfe-4a1d-a53e-aace60c59e7b
 # ╠═3ac441a1-76a0-4451-b8ac-c17588411a8d
 # ╠═1038ab6d-a743-4864-96fa-1e3fecc226c8
-# ╠═bef24494-2d96-4c30-8635-ba0245285556
-# ╠═72ac17e0-10d0-4a48-b715-207af48afca4
-# ╠═49d2a3fa-d81c-427d-98c6-7e5a65e38c8e
-# ╠═ec29b4d1-ff98-40db-a965-fcad0ff9de90
-# ╠═30bb8699-7c8c-4399-98a6-229b5f8f6423
-# ╠═0c368b2f-31a0-490d-8574-d43180aa49e9
-# ╠═321de78e-681f-470f-b9eb-ca9030f9cb57
-# ╠═66f47fcb-48a0-45c1-8b2f-7c0d4dc0f3f4
-# ╠═29e1051e-0f61-4bc0-9996-0a34d51b4476
-# ╠═d0e5cbf3-1cc4-4685-9efe-8c45dd99a710
-# ╠═cd92e57e-fd5f-49d3-bb66-fb60a3087e31
-# ╠═d7bcae00-b1ac-4c3d-81f3-827f87d75a4d
-# ╠═50d253f7-8309-4503-8823-2f691f89ea7d
-# ╠═4343774c-8dde-428a-bf55-5ba6845963e2
-# ╠═3a8686c4-05b3-48a3-8ee8-ffd751c1868d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
