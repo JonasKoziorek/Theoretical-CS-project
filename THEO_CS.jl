@@ -36,14 +36,14 @@ md"""
 We shall also intoduce aliases that better fit the vocabulary in the book.
 """
 
-# ╔═╡ 81fc59a9-d0db-4675-b1ff-53540b75705e
+# ╔═╡ b00a1e34-dc4d-47e7-a364-ea68f9a3e8ca
 begin
 	Word = String
 	Symbol = Char 
 	State = String # for states such as q1
 	const 𝜖 = ""
 	Language = Set{Word}
-end;
+end
 
 # ╔═╡ 42bbc7bb-2619-4e2f-8feb-b6db95725a1f
 md"""
@@ -60,7 +60,7 @@ We will represent this structure in code as follows:
 """
 
 
-# ╔═╡ 043818ac-da5e-4c41-8f7b-5af36902cd2c
+# ╔═╡ d9e6f3d2-b56d-4587-8324-385d11d732fe
 struct DFA <: FA # DFA = deterministic finite automata
 	Q :: Set{State}
 	Σ :: Set{Symbol}
@@ -74,7 +74,7 @@ md"""
 Let's construct the transition function δ for a DFA that accepts a current state and a symbol and moves the automata to the next state.
 """
 
-# ╔═╡ ee2b299b-8ff7-4c90-9e82-0cd3b5eb835a
+# ╔═╡ 37decd55-6f2b-4344-a20c-a893227c0f13
 function δ(automata::DFA, state::State, symbol::Symbol)
 	return automata.δ[(state, symbol)]
 end
@@ -147,7 +147,7 @@ begin
 	end
 end;
 
-# ╔═╡ f97e7bdf-231f-4430-9b05-ecc01bcaca10
+# ╔═╡ 554b1c89-d99b-4da3-a2b0-485e7f907b9f
 function δ(automata::DFA, state::State, word::Word)
 	if length(word) > 1
 		prefix = word[1:end-1]
@@ -158,7 +158,7 @@ function δ(automata::DFA, state::State, word::Word)
 	end
 end
 
-# ╔═╡ 36e2df5e-3515-46c9-8b30-dc409e0cb444
+# ╔═╡ 81de4891-4cc5-4711-91c3-5fbd7253ee18
 function accepts(automata::DFA, word::String)
 	state = automata.q0
 	result = δ(automata, state, word)
@@ -169,7 +169,7 @@ function accepts(automata::DFA, word::String)
 	end
 end
 
-# ╔═╡ 8cc13850-e8d3-11ed-2309-8f80bad85bd2
+# ╔═╡ 7239c4f3-554a-40aa-b8f3-a61089ab0343
 begin
 	Q1 = Set(["1", "2", "3", "4", "5"])
 	Σ1 = Set(['a', 'b', 'c', 'd'])
@@ -213,7 +213,7 @@ Formally represented by 5-tuple (Q, Σ, δ, q0, F) where:
 We will represent this structure in code as follows:
 """
 
-# ╔═╡ 6784b1b4-793d-42e7-8319-2d94a7f71eb2
+# ╔═╡ 76c842d6-18ab-47c6-8c3d-9b0ac302c755
 struct NFA <: FA # DFA = deterministic finite automata
 	Q :: Set{State}
 	Σ :: Set{Symbol}
@@ -237,7 +237,7 @@ We will represent this structure in code as follows:
 """
 # 𝜖 is \itepsilon
 
-# ╔═╡ d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
+# ╔═╡ a7a06841-d2b3-4265-8549-44b3a08e5302
 struct 𝜖NFA <: FA
 	Q :: Set{State}
 	Σ :: Set{Symbol}
@@ -250,7 +250,7 @@ struct 𝜖NFA <: FA
 end
 # 𝜖 is \itepsilon
 
-# ╔═╡ a6323c56-c93f-41ff-b18b-0fe8e0cdc166
+# ╔═╡ 30e842dc-5531-45c2-b19d-87cc809d9daf
 begin
 	Q2 = Set(["a", "b", "c"])
 	Σ2 = Set(['0', '1', '2'])
@@ -263,6 +263,65 @@ begin
 	F2 = Set(["b", "c"])
 	enfa = 𝜖NFA(Q2, Σ2, δ2, q02, F2)
 end
+
+# ╔═╡ ca1a1e92-e576-4938-a914-08abb1ed8ebe
+begin
+	function 𝜖Closure(enfa::𝜖NFA, state::State)
+		key = filter(key -> key[1] == state && key[2]==𝜖, keys(enfa.δ))
+		if Base.length(collect(key)) == 1
+			𝜖transitions = enfa.δ[first(key)]
+			return 𝜖transitions
+		else
+			return Set([])
+		end
+	end
+	
+	function 𝜖CLOSURE(enfa::𝜖NFA, state::State)
+		closure = Set([state])
+		len = 1
+		prev_len = -1
+		while len != prev_len
+			prev_len = len
+			for i in collect(closure)
+				closure = union(closure, 𝜖Closure(enfa, i))
+			end
+			len = Base.length(collect(closure))
+		end
+		return closure
+	end
+
+	function 𝜖CLOSURE(enfa::𝜖NFA, states::Set{State})
+		return union([𝜖CLOSURE(enfa, state) for state in collect(states)]...)
+	end
+
+	function convert(::Type{NFA}, enfa::𝜖NFA)
+		Q = enfa.Q
+		Σ = enfa.Σ
+		δ = Dict()
+		for q in collect(Q)
+			for a in collect(Σ)
+				first_closure = [enfa.δ[(r, a)] for r in collect(𝜖CLOSURE(enfa, q)) if (r,a) in keys(enfa.δ)]
+				
+				if Base.length(first_closure) != 0
+					δ[(q,a)] = 𝜖CLOSURE(enfa, union(first_closure...))		
+				end
+			end
+		end
+		q0 = enfa.q0
+		
+		intersection = intersect(enfa.Q, 𝜖CLOSURE(enfa, enfa.q0))
+		if Base.length(intersection) != 0
+			F = union(enfa.F, Set([enfa.q0]))
+		else
+			F = enfa.F
+		end
+		return NFA(Q, Σ, δ, q0, F)
+	end
+	
+end
+
+# ╔═╡ c00487f8-e9da-40df-8277-38746c0fe9fd
+intersect(Set([1,2]), Set([2,3]))
 
 # ╔═╡ 8604a238-25d4-466f-ba58-dbdd2fe657c5
 md"""
@@ -359,7 +418,13 @@ end
 
 end
 
-# ╔═╡ 950ce579-ecb4-49a1-bb8e-c8b37c3cc3dc
+# ╔═╡ 0d0459f6-f921-4d4d-ac7c-fb121b9b4058
+begin
+a = "a⋅A⋅(0+A)*+𝜖"
+c = REGEX.parse(a)
+end
+
+# ╔═╡ d0282bb1-0527-4de8-9a26-6c61d7075b56
 begin
 
 rename_key(key, subs) = (subs[key[1]], key[2])
@@ -418,7 +483,7 @@ function convert(::Type{𝜖NFA}, expr::REGEX.Concatenation)
 
 	Q = union(a.Q, b.Q)
 	Σ = union(a.Σ, b.Σ)
-	δ = merge(a.δ, b.δ, Dict((first(collect(a.F)) , "") => Set([b.q0])))
+	δ = merge(a.δ, b.δ, Dict((first(collect(a.F)) , 𝜖) => Set([b.q0])))
 	q0 = a.q0
 	F = b.F
 	return 𝜖NFA(Q, Σ, δ, q0, F)
@@ -437,9 +502,9 @@ function convert(::Type{𝜖NFA}, expr::REGEX.Union)
 	Σ = union(a.Σ, b.Σ)
 	δ = merge(a.δ, b.δ, 
 		Dict(
-			("q0" , "") => Set([a.q0, b.q0]),
-			(first(collect(a.F)) , "") => Set(["q$(len_a+1)"]),
-			(first(collect(b.F)) , "") => Set(["q$(len_a+1)"]),
+			("q0" , 𝜖) => Set([a.q0, b.q0]),
+			(first(collect(a.F)) , 𝜖) => Set(["q$(len_a+1)"]),
+			(first(collect(b.F)) , 𝜖) => Set(["q$(len_a+1)"]),
 		)
 	)
 	q0 = "q0"
@@ -457,8 +522,8 @@ function convert(::Type{𝜖NFA}, expr::REGEX.KleeneClosure)
 	Σ = a.Σ
 	δ = merge(a.δ, 
 		Dict(
-			("q0" , "") => Set([a.q0, "q$(len_a+1)"]),
-			(first(collect(a.F)) , "") => Set([a.q0, "q$(len_a+1)"]),
+			("q0" , 𝜖) => Set([a.q0, "q$(len_a+1)"]),
+			(first(collect(a.F)) , 𝜖) => Set([a.q0, "q$(len_a+1)"]),
 		)
 	)
 	q0 = "q0"
@@ -468,7 +533,37 @@ end
 	
 end
 
-# ╔═╡ 6e56ab42-82ff-484e-a0d1-8de1e89821f9
+# ╔═╡ 43f9a8ef-0501-429a-baae-9d19ea2a0458
+begin # example from fig 2.8 in enfa chapter
+	enfa3 = 𝜖NFA(
+		Set(["q0", "q1", "q2"]),
+		Set(['0', '1', '2']),
+		Dict(
+			("q0", '0') => Set(["q0"]),
+			("q0", 𝜖) => Set(["q1"]),
+			("q1", '1') => Set(["q1"]),
+			("q1", 𝜖) => Set(["q2"]),
+			("q2", '2') => Set(["q2"]),		
+		),
+		"q0",
+		Set(["q2"])
+	)
+	nfa1 = convert(NFA, enfa3)
+end
+
+# ╔═╡ da6399ce-562b-4ee9-94cf-fbc77d4a31f8
+enfa3
+
+# ╔═╡ eaede1b2-2997-4adc-8513-084331032fe4
+begin
+enfa2 = convert(𝜖NFA, REGEX.parse("A⋅(0+0)*+𝜖"))
+𝜖CLOSURE(enfa2, "q2")
+end
+
+# ╔═╡ 4f3c82c8-8005-411d-9aa6-bbb4e2e642cb
+enfa2
+
+# ╔═╡ e5423ff9-a1d1-4b6d-ade4-e5926f56d2b0
 convert(𝜖NFA, REGEX.parse("A⋅(0+A)*"))
 
 # ╔═╡ df4186f1-a2d5-4fde-8561-cb45c7da44d7
@@ -506,28 +601,7 @@ convert(𝜖NFA, REGEX.parse("A⋅(0+A)*"))
 # 	print("$(string(expr.lang1))+$(string(expr.lang2))")
 # end
 
-# ╔═╡ 5d8d5a1c-8044-4a0f-aa51-ed0de32b1922
-lang = Set(["a","c","b"])
-
-# ╔═╡ db54fa24-6bbf-46b8-bd8c-6bb571bc54bf
-reg = LangUnion(lang, lang)
-
-# ╔═╡ 9c51fca8-7a68-4d9e-a1a9-f0ebd920e1a2
-# ╠═╡ disabled = true
-#=╠═╡
-b = string(lang)
-  ╠═╡ =#
-
-# ╔═╡ f8ea5ba5-9d3c-4bf8-8cc8-d9426586f3b3
-display(reg)
-
-# ╔═╡ 07e4cfd2-fec0-4eeb-b28b-43ef25f4ea2f
-string(a)
-
-# ╔═╡ e895b0e0-2405-4bf3-a1ef-f0b0f4d7b69d
-print(sort(collect(a)))
-
-# ╔═╡ bb538110-b40e-4f2a-b608-d84029b03101
+# ╔═╡ 61de9a2e-13e7-4f8a-837d-4253decd979f
 transition_diagram(automata)
 
 # ╔═╡ d5e8a30e-7c02-4488-9b76-c433bfc47af3
@@ -559,13 +633,13 @@ begin
 	show_step(automata, answer)
 end
 
-# ╔═╡ d1325a74-acbc-40ad-9cdd-d5c723d1b38e
+# ╔═╡ af24a85b-10dc-4191-9f9c-1feb5b087c9b
 label_edges(automata)
 
 # ╔═╡ ab37b446-9ae2-43f2-8ad2-23c955bef5e2
 graph
 
-# ╔═╡ 14d452a8-9688-4c91-99f1-199d07c19d9d
+# ╔═╡ 22c87b83-e604-47cf-9cc5-c62bb596dad0
 δ(automata, 1, "c")
 
 # ╔═╡ ac26115c-994c-4d26-8cd3-1d0173ff0963
@@ -587,7 +661,7 @@ md"""
 Let's define some aliases for our new object:
 """
 
-# ╔═╡ 7183663f-f34d-4fed-ac6d-9497a59684ef
+# ╔═╡ 2595d95d-e078-4797-89f0-a5fea224958d
 begin
 	Productions = Dict{Word, Vector{Vector{Word}}}
 end;
@@ -597,7 +671,7 @@ md"""
 We will represent CFG in code as follows:
 """
 
-# ╔═╡ 58fbc0f0-129f-40c4-86d4-62e08800135d
+# ╔═╡ acecd610-61b1-4a9d-b25c-7621cf1118aa
 struct CFG
 	V :: Set{Word}
 	T :: Set{Word}
@@ -610,7 +684,7 @@ md"""
 Here is a construction of a CFG in example 4.4 on page 83:
 """
 
-# ╔═╡ 561f049e-6e70-4321-805f-0d4ecd95117d
+# ╔═╡ 521ce74b-50b7-486b-9ffe-c5af10eeacea
 begin
 	variables = Set(["S", "A"])
 	terminals = Set(["a", "b"])
@@ -622,7 +696,7 @@ begin
 	G = CFG(variables, terminals, productions, start_symbol)
 end
 
-# ╔═╡ 111de558-02ad-4555-bedc-93061494f49a
+# ╔═╡ a3f1a607-2a83-4fcf-b82d-d5ed77a278ba
 function deriv(cfg::CFG, word::Word, prod::Tuple{Word, Int64})
 	var = prod[1]
 	index = findfirst(var, word)[1]
@@ -632,7 +706,7 @@ end
 # ╔═╡ a9838ecf-a01a-43ea-a954-c17449d8217e
 word = "Saa"
 
-# ╔═╡ d28b7d98-aec7-4434-b679-cb7154b858f2
+# ╔═╡ a030d112-051c-483d-8363-82447c965e28
 deriv(G, word, ("S", 1))
 
 # ╔═╡ 4a6b124f-ab81-4703-b281-87e76a224406
@@ -640,7 +714,7 @@ md"""
 # Derivation Tree
 """
 
-# ╔═╡ 84360a9e-5267-4b46-bc5f-c2165ee7603f
+# ╔═╡ 1b0808e4-5183-419d-a0d2-cc47bf6f91d2
 struct DerivTree
 	name :: Word
 	children :: Vector{DerivTree}
@@ -651,7 +725,7 @@ md"""
 Example of derivation tree from example 4.4 on page 83:
 """
 
-# ╔═╡ d93649e0-1336-424a-ac22-238713376cf6
+# ╔═╡ 82272fb8-ffe1-4842-b969-c4528ae80aaa
 begin
 	DT = DerivTree
 	dtG = DT("S", 
@@ -679,7 +753,7 @@ md"""
 Wow, that was quite tedious. Fortunately parsers can do this for us and break down input strings to their parse tree representations automatically. Let's see which string does this derivation tree yield:
 """
 
-# ╔═╡ 69079142-2dfe-4a1d-a53e-aace60c59e7b
+# ╔═╡ afe11549-6acc-42c7-a7f4-f0e1d7cd1692
 function yield(dt::DerivTree)
 	if length(dt.children) == 0
 		return dt.name
@@ -688,23 +762,11 @@ function yield(dt::DerivTree)
 	end
 end
 
-# ╔═╡ 3ac441a1-76a0-4451-b8ac-c17588411a8d
+# ╔═╡ 7423ca4f-cc69-4979-8d7f-706a41c2e283
 yield(dtG)
 
-# ╔═╡ 1038ab6d-a743-4864-96fa-1e3fecc226c8
+# ╔═╡ 13a5455e-57e4-4189-ba03-afaa20da4182
 function plot(dt::DerivTree)
-end
-
-# ╔═╡ a0725261-d883-4f5d-9285-b2ae3aac85ee
-# ╠═╡ disabled = true
-#=╠═╡
-a = Set([1,2,3])
-  ╠═╡ =#
-
-# ╔═╡ 0d0459f6-f921-4d4d-ac7c-fb121b9b4058
-begin
-a = "a⋅A⋅(0+A)*+𝜖"
-c = REGEX.parse(a)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -1909,63 +1971,62 @@ version = "1.4.1+0"
 # ╟─e7d3ed3d-6eeb-4783-a0d4-864dd258588a
 # ╠═52e6d1e7-064a-4cea-940d-31626ba11444
 # ╟─481ffec9-8a37-4d49-b18b-a73f1a9f20ce
-# ╠═81fc59a9-d0db-4675-b1ff-53540b75705e
+# ╠═b00a1e34-dc4d-47e7-a364-ea68f9a3e8ca
 # ╟─42bbc7bb-2619-4e2f-8feb-b6db95725a1f
-# ╠═043818ac-da5e-4c41-8f7b-5af36902cd2c
+# ╠═d9e6f3d2-b56d-4587-8324-385d11d732fe
 # ╟─6920938e-35c1-4ad6-afdc-7074b6c14864
 # ╟─5f52b01e-243a-475a-9583-afc7bc31bd60
-# ╠═ee2b299b-8ff7-4c90-9e82-0cd3b5eb835a
+# ╠═37decd55-6f2b-4344-a20c-a893227c0f13
 # ╟─4bc35f6c-c01b-46be-834b-e00c050cfb2a
-# ╠═f97e7bdf-231f-4430-9b05-ecc01bcaca10
+# ╠═554b1c89-d99b-4da3-a2b0-485e7f907b9f
 # ╟─3c3da943-5661-4fa3-a3f0-dbd90ed63a1f
-# ╠═36e2df5e-3515-46c9-8b30-dc409e0cb444
+# ╠═81de4891-4cc5-4711-91c3-5fbd7253ee18
 # ╠═e26eda4d-1aad-44ff-a657-4320a07c8ddd
-# ╠═8cc13850-e8d3-11ed-2309-8f80bad85bd2
+# ╠═7239c4f3-554a-40aa-b8f3-a61089ab0343
 # ╟─a020300f-054f-40f2-bbc0-f2519bcb5aac
-# ╠═6784b1b4-793d-42e7-8319-2d94a7f71eb2
+# ╠═76c842d6-18ab-47c6-8c3d-9b0ac302c755
 # ╟─8c4234ce-c204-4931-a355-bc73e91c6823
-# ╠═d6a4f91a-cdee-4cd7-8e29-8c2f4d5e9cff
-# ╠═a6323c56-c93f-41ff-b18b-0fe8e0cdc166
+# ╠═a7a06841-d2b3-4265-8549-44b3a08e5302
+# ╠═30e842dc-5531-45c2-b19d-87cc809d9daf
+# ╠═ca1a1e92-e576-4938-a914-08abb1ed8ebe
+# ╠═43f9a8ef-0501-429a-baae-9d19ea2a0458
+# ╠═da6399ce-562b-4ee9-94cf-fbc77d4a31f8
+# ╠═eaede1b2-2997-4adc-8513-084331032fe4
+# ╠═c00487f8-e9da-40df-8277-38746c0fe9fd
+# ╠═4f3c82c8-8005-411d-9aa6-bbb4e2e642cb
 # ╟─8604a238-25d4-466f-ba58-dbdd2fe657c5
 # ╠═3699204b-7ae6-4af5-afa8-f7501e5d8451
 # ╠═0d0459f6-f921-4d4d-ac7c-fb121b9b4058
-# ╠═950ce579-ecb4-49a1-bb8e-c8b37c3cc3dc
-# ╠═6e56ab42-82ff-484e-a0d1-8de1e89821f9
+# ╠═d0282bb1-0527-4de8-9a26-6c61d7075b56
+# ╠═e5423ff9-a1d1-4b6d-ade4-e5926f56d2b0
 # ╠═df4186f1-a2d5-4fde-8561-cb45c7da44d7
 # ╠═69960128-6005-46f2-a472-b00ab0d6abe7
 # ╠═0df007a2-7553-43a6-991f-815704a29985
 # ╠═08d2ba43-fd3c-481e-b18b-f100bccd033e
 # ╠═1788b455-4444-4a7e-b830-a439dc9fba6a
-# ╠═5d8d5a1c-8044-4a0f-aa51-ed0de32b1922
-# ╠═db54fa24-6bbf-46b8-bd8c-6bb571bc54bf
-# ╠═9c51fca8-7a68-4d9e-a1a9-f0ebd920e1a2
-# ╠═f8ea5ba5-9d3c-4bf8-8cc8-d9426586f3b3
-# ╠═a0725261-d883-4f5d-9285-b2ae3aac85ee
-# ╠═07e4cfd2-fec0-4eeb-b28b-43ef25f4ea2f
-# ╠═e895b0e0-2405-4bf3-a1ef-f0b0f4d7b69d
-# ╠═bb538110-b40e-4f2a-b608-d84029b03101
+# ╠═61de9a2e-13e7-4f8a-837d-4253decd979f
 # ╟─38eeeab0-7390-4ecb-8649-a215db54bdf9
 # ╟─d5e8a30e-7c02-4488-9b76-c433bfc47af3
-# ╠═d1325a74-acbc-40ad-9cdd-d5c723d1b38e
+# ╠═af24a85b-10dc-4191-9f9c-1feb5b087c9b
 # ╠═ab37b446-9ae2-43f2-8ad2-23c955bef5e2
-# ╠═14d452a8-9688-4c91-99f1-199d07c19d9d
+# ╠═22c87b83-e604-47cf-9cc5-c62bb596dad0
 # ╟─ac26115c-994c-4d26-8cd3-1d0173ff0963
 # ╟─d60401e4-68c1-46eb-a058-198bc07cc038
-# ╠═7183663f-f34d-4fed-ac6d-9497a59684ef
+# ╠═2595d95d-e078-4797-89f0-a5fea224958d
 # ╟─a671e43e-b047-40be-aa86-033cb2d9f189
-# ╠═58fbc0f0-129f-40c4-86d4-62e08800135d
+# ╠═acecd610-61b1-4a9d-b25c-7621cf1118aa
 # ╟─d3d284f6-bd4c-409a-b7df-6273cc80205d
-# ╠═561f049e-6e70-4321-805f-0d4ecd95117d
-# ╠═111de558-02ad-4555-bedc-93061494f49a
+# ╠═521ce74b-50b7-486b-9ffe-c5af10eeacea
+# ╠═a3f1a607-2a83-4fcf-b82d-d5ed77a278ba
 # ╠═a9838ecf-a01a-43ea-a954-c17449d8217e
-# ╠═d28b7d98-aec7-4434-b679-cb7154b858f2
+# ╠═a030d112-051c-483d-8363-82447c965e28
 # ╟─4a6b124f-ab81-4703-b281-87e76a224406
-# ╠═84360a9e-5267-4b46-bc5f-c2165ee7603f
+# ╠═1b0808e4-5183-419d-a0d2-cc47bf6f91d2
 # ╟─2a61b7ea-0030-4df5-98c4-9184b44c3768
-# ╠═d93649e0-1336-424a-ac22-238713376cf6
+# ╠═82272fb8-ffe1-4842-b969-c4528ae80aaa
 # ╟─4d1cc7d4-95c3-466a-9d0d-234031ca7782
-# ╠═69079142-2dfe-4a1d-a53e-aace60c59e7b
-# ╠═3ac441a1-76a0-4451-b8ac-c17588411a8d
-# ╠═1038ab6d-a743-4864-96fa-1e3fecc226c8
+# ╠═afe11549-6acc-42c7-a7f4-f0e1d7cd1692
+# ╠═7423ca4f-cc69-4979-8d7f-706a41c2e283
+# ╠═13a5455e-57e4-4189-ba03-afaa20da4182
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
