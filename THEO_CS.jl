@@ -15,7 +15,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ 1c0b6789-7dcb-4005-8adc-e1a4a275629d
-using Plots, GraphRecipes, Graphs, Random, PlutoUI
+using Plots, GraphRecipes, Graphs, Random, PlutoUI, DataStructures
 
 # ╔═╡ 295638ba-a435-42db-aa5a-838a47d594ab
 md"""
@@ -68,29 +68,6 @@ struct DFA <: FA # DFA = deterministic finite automata
 	q0 :: State
 	F :: Set{State}
 end
-
-# ╔═╡ 5f52b01e-243a-475a-9583-afc7bc31bd60
-md"""
-Let's construct the transition function δ for a DFA that accepts a current state and a symbol and moves the automata to the next state.
-"""
-
-# ╔═╡ 37decd55-6f2b-4344-a20c-a893227c0f13
-function δ(automata::DFA, state::State, symbol::Symbol)
-	return automata.δ[(state, symbol)]
-end
-
-# ╔═╡ 4bc35f6c-c01b-46be-834b-e00c050cfb2a
-md"""
-We can simply extend the transition function δ such that it accepts words.
-"""
-
-# ╔═╡ 3c3da943-5661-4fa3-a3f0-dbd90ed63a1f
-md"""
-DFA _accepts_ a word if and only if the δ(q0, word) ∈ F. We can check whether a word is accepted algorithmically this way:
-"""
-
-# ╔═╡ e26eda4d-1aad-44ff-a657-4320a07c8ddd
-length(automata::FA) = Base.length(FA.Q)
 
 # ╔═╡ 6920938e-35c1-4ad6-afdc-7074b6c14864
 begin
@@ -147,6 +124,21 @@ begin
 	end
 end;
 
+# ╔═╡ 5f52b01e-243a-475a-9583-afc7bc31bd60
+md"""
+Let's construct the transition function δ for a DFA that accepts a current state and a symbol and moves the automata to the next state.
+"""
+
+# ╔═╡ 37decd55-6f2b-4344-a20c-a893227c0f13
+function δ(automata::DFA, state::State, symbol::Symbol)
+	return automata.δ[(state, symbol)]
+end
+
+# ╔═╡ 4bc35f6c-c01b-46be-834b-e00c050cfb2a
+md"""
+We can simply extend the transition function δ such that it accepts words.
+"""
+
 # ╔═╡ 554b1c89-d99b-4da3-a2b0-485e7f907b9f
 function δ(automata::DFA, state::State, word::Word)
 	if length(word) > 1
@@ -158,6 +150,11 @@ function δ(automata::DFA, state::State, word::Word)
 	end
 end
 
+# ╔═╡ 3c3da943-5661-4fa3-a3f0-dbd90ed63a1f
+md"""
+DFA _accepts_ a word if and only if the δ(q0, word) ∈ F. We can check whether a word is accepted algorithmically this way:
+"""
+
 # ╔═╡ 81de4891-4cc5-4711-91c3-5fbd7253ee18
 function accepts(automata::DFA, word::String)
 	state = automata.q0
@@ -168,6 +165,9 @@ function accepts(automata::DFA, word::String)
 		return false
 	end
 end
+
+# ╔═╡ e26eda4d-1aad-44ff-a657-4320a07c8ddd
+# length(automata::FA) = length(FA.Q)
 
 # ╔═╡ 7239c4f3-554a-40aa-b8f3-a61089ab0343
 begin
@@ -184,20 +184,6 @@ begin
 	F1 = Set(["2"])
 	dfa = DFA(Q1, Σ1, δ1, q01, F1)
 end
-# begin
-# 	Q = Set(['1', '2', '3', '4', '5'])
-# 	Σ = Set(['a', 'b', 'c', 'd'])
-# 	δ2 = Dict(
-# 		('1', 'a') => '2',
-# 		('5', 'b') => '3',
-# 		('4', 'd') => '1',
-# 		('3', 'c') => '4',
-# 		('2', 'b') => '5',		
-# 	)
-# 	q0 = '1'
-# 	F = Set(['2'])
-# 	dfa = DFA(Q, Σ, δ2, q0, F)
-# end
 
 # ╔═╡ a020300f-054f-40f2-bbc0-f2519bcb5aac
 md"""
@@ -221,6 +207,20 @@ struct NFA <: FA # DFA = deterministic finite automata
 	q0 :: State
 	F :: Set{State}
 end
+
+# ╔═╡ e0a76c1a-92f4-4187-a7e8-5a802515d20a
+# nfa from example 2.5 on page 23
+nfa2 = NFA(
+	Set(["q0", "q1"]),
+	Set(['0', '1']),
+	Dict(
+		("q0", '0') => Set(["q0", "q1"]),
+		("q0", '1') => Set(["q1"]),
+		("q1", '1') => Set(["q0", "q1"])
+	),
+	"q0",
+	Set(["q1"])
+)
 
 # ╔═╡ 8c4234ce-c204-4931-a355-bc73e91c6823
 md"""
@@ -268,7 +268,7 @@ end
 begin
 	function 𝜖Closure(enfa::𝜖NFA, state::State)
 		key = filter(key -> key[1] == state && key[2]==𝜖, keys(enfa.δ))
-		if Base.length(collect(key)) == 1
+		if length(collect(key)) == 1
 			𝜖transitions = enfa.δ[first(key)]
 			return 𝜖transitions
 		else
@@ -285,7 +285,7 @@ begin
 			for i in collect(closure)
 				closure = union(closure, 𝜖Closure(enfa, i))
 			end
-			len = Base.length(collect(closure))
+			len = length(collect(closure))
 		end
 		return closure
 	end
@@ -302,7 +302,7 @@ begin
 			for a in collect(Σ)
 				first_closure = [enfa.δ[(r, a)] for r in collect(𝜖CLOSURE(enfa, q)) if (r,a) in keys(enfa.δ)]
 				
-				if Base.length(first_closure) != 0
+				if length(first_closure) != 0
 					δ[(q,a)] = 𝜖CLOSURE(enfa, union(first_closure...))		
 				end
 			end
@@ -310,7 +310,7 @@ begin
 		q0 = enfa.q0
 		
 		intersection = intersect(enfa.Q, 𝜖CLOSURE(enfa, enfa.q0))
-		if Base.length(intersection) != 0
+		if length(intersection) != 0
 			F = union(enfa.F, Set([enfa.q0]))
 		else
 			F = enfa.F
@@ -363,9 +363,9 @@ struct Symbol <: RegExpr
 	Symbol(a::String) = new(a)
 end
 
-remove_space(a) = filter(x -> !isspace(x), a)
 parse(expr :: String) = expression(remove_space(expr))[2]
 move(word::String) = last(word,length(word)-1)
+remove_space(a) = filter(x -> !isspace(x), a)
 
 
 function expression(word::Word)
@@ -418,40 +418,119 @@ end
 
 end
 
+# ╔═╡ 1e30ab88-74e4-46cc-929b-5b9ba37104cf
+remove_space(a) = REGEX.remove_space(a)
+
 # ╔═╡ 0d0459f6-f921-4d4d-ac7c-fb121b9b4058
 begin
 a = "a⋅A⋅(0+A)*+𝜖"
 c = REGEX.parse(a)
 end
 
-# ╔═╡ d0282bb1-0527-4de8-9a26-6c61d7075b56
+# ╔═╡ 9aa9375b-0047-44ff-b8c7-7f686429b9a1
 begin
 
+# 𝜖NFA
 rename_key(key, subs) = (subs[key[1]], key[2])
 rename_keys(keys, subs) = [rename_key(key, subs) for key in keys]
 rename_val(val, subs) = Set([subs[state] for state in val])
 rename_vals(vals, subs) = [rename_val(val, subs) for val in collect(vals)]
-	
-function rename_transitions(transitions , subs)
+
+function rename_transitions(transitions, subs)
 	Dict(rename_keys(
 		keys(transitions), subs) .=> rename_vals(values(transitions), subs)
 	)
 end
 
-function rename(enfa::𝜖NFA, char::String, start::Int)
-	states = collect(enfa.Q)
-	len = Base.length(states)
+function rename(fa::FA, char::String, start::Int)
+	states = sort(collect(fa.Q))
+	len = length(states)
 	nvect = ["$(char)$(i+start)" for i = 1:len]
 	subs = Dict(zip(states, nvect))
+	@info "subs" subs
 
-	Q = Set([subs[state] for state in collect(enfa.Q)])
-	Σ = enfa.Σ
-	δ = rename_transitions(enfa.δ, subs)
-	q0 = subs[enfa.q0]
-	F = Set([subs[state] for state in collect(enfa.F)])
-	return 𝜖NFA(Q, Σ, δ, q0, F)
+	Q = Set([subs[state] for state in collect(fa.Q)])
+	Σ = fa.Σ
+	δ = rename_transitions(fa.δ, subs)
+	q0 = subs[fa.q0]
+	F = Set([subs[state] for state in collect(fa.F)])
+	type_ = typeof(fa)
+	return type_(Q, Σ, δ, q0, F)
 end
-rename(enfa::𝜖NFA, char::String) = rename(enfa, char, 0)
+
+	
+rename(fa::FA, char::String) = rename(fa, char, 0)
+	
+end
+
+# ╔═╡ e78147a2-25b1-4a99-93d8-e911a750767b
+begin
+	parse_state_name(state::State) = split(remove_space(state)[2:end-1], ',')
+	function code_state_name(states::Set{State})
+		states = sort(collect(states))
+		new_state = "[" * join([state * ", " for state in states])
+		new_state = new_state[1:end-2] * "]"
+		return new_state
+		
+	end
+
+	function conv_δ(nfa::NFA, state::State, symbol::Symbol)
+		states = parse_state_name(state)
+		new_states = [nfa.δ[(state, symbol)] for state in states if (state, symbol) in keys(nfa.δ)]
+		if length(new_states) == 0
+			return ""
+		else
+			new_states = union(new_states...)
+			return code_state_name(new_states)
+		end
+	end
+
+	function check_final_state(nfa::NFA, state::State)
+		for f in collect(nfa.F)
+			if f ∈ parse_state_name(state)
+				return true
+			end
+		end
+		return false
+	end
+	
+	function make_deterministic(nfa::NFA, q0::State)
+		Q = Set([])
+		F = Set([])
+		δ = Dict()
+		stack = Stack{State}()
+		push!(stack, q0)
+		
+		while length(stack) != 0
+			state = pop!(stack)
+			if state ∉ Q
+				push!(Q, state)
+				if check_final_state(nfa, state)
+					push!(F, state)
+				end
+				for a in nfa.Σ
+					new_state = conv_δ(nfa, state, a)
+					if new_state != ""
+						push!(stack, new_state)
+						δ[(state, a)] = new_state
+					end
+				end
+			end
+		end
+		return Q, δ, F
+	end
+	
+	function convert(::Type{DFA}, nfa::NFA)
+		nfa = rename(nfa, "q", -1)
+		Σ = nfa.Σ
+		q0 = "[q0]"
+		Q, δ, F = make_deterministic(nfa, q0)
+		return DFA(Q, Σ, δ, q0, F)
+	end
+end
+
+# ╔═╡ d0282bb1-0527-4de8-9a26-6c61d7075b56
+begin
 	
 function convert(::Type{𝜖NFA}, expr::REGEX.Epsilon)
 	Q = Set(["q0"])
@@ -475,8 +554,8 @@ end
 function convert(::Type{𝜖NFA}, expr::REGEX.Concatenation)
 	a = convert(𝜖NFA, expr.lang1)
 	b = convert(𝜖NFA, expr.lang2)
-	len_a = Base.length(a.Q)
-	len_b = Base.length(b.Q)
+	len_a = length(a.Q)
+	len_b = length(b.Q)
 
 	a = rename(a, "q")
 	b = rename(b, "q", len_a)
@@ -492,8 +571,8 @@ end
 function convert(::Type{𝜖NFA}, expr::REGEX.Union)
 	a = convert(𝜖NFA, expr.lang1)
 	b = convert(𝜖NFA, expr.lang2)
-	len_a = Base.length(a.Q)
-	len_b = Base.length(b.Q)
+	len_a = length(a.Q)
+	len_b = length(b.Q)
 
 	a = rename(a, "q")
 	b = rename(b, "q", len_a)
@@ -514,7 +593,7 @@ end
 
 function convert(::Type{𝜖NFA}, expr::REGEX.KleeneClosure)
 	a = convert(𝜖NFA, expr.lang)
-	len_a = Base.length(a.Q)
+	len_a = length(a.Q)
 
 	a = rename(a, "q")
 
@@ -532,6 +611,9 @@ function convert(::Type{𝜖NFA}, expr::REGEX.KleeneClosure)
 end	
 	
 end
+
+# ╔═╡ 2725c50b-29d1-4662-9470-6138da5f8cb4
+q = convert(DFA, nfa2)
 
 # ╔═╡ 43f9a8ef-0501-429a-baae-9d19ea2a0458
 begin # example from fig 2.8 in enfa chapter
@@ -551,8 +633,14 @@ begin # example from fig 2.8 in enfa chapter
 	nfa1 = convert(NFA, enfa3)
 end
 
+# ╔═╡ 0bfe06d7-79c2-46b6-9d99-846239c4c26c
+nfa = rename(nfa1, "q", -1)
+
 # ╔═╡ da6399ce-562b-4ee9-94cf-fbc77d4a31f8
 enfa3
+
+# ╔═╡ 802cf2dc-af62-460d-8086-b2a180b83a65
+typ = typeof(nfa1)
 
 # ╔═╡ eaede1b2-2997-4adc-8513-084331032fe4
 begin
@@ -772,6 +860,7 @@ end
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 GraphRecipes = "bd48cda9-67a9-57be-86fa-5b3c104eda73"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
@@ -779,6 +868,7 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
+DataStructures = "~0.18.14"
 GraphRecipes = "~0.5.12"
 Graphs = "~1.8.0"
 Plots = "~1.38.11"
@@ -791,7 +881,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "4f10380c8d3ae3ddd6a6e557c2caab3722010d14"
+project_hash = "89e445cfaf743abc0d1e796af9ec29f715387548"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -922,9 +1012,9 @@ version = "1.14.0"
 
 [[deps.DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
-git-tree-sha1 = "d1fff3a548102f48987a52a2e0d114fa97d730f0"
+git-tree-sha1 = "cf25ccb972fec4e4817764d01c82386ae94f77b4"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.18.13"
+version = "0.18.14"
 
 [[deps.DataValueInterfaces]]
 git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
@@ -1983,6 +2073,9 @@ version = "1.4.1+0"
 # ╠═81de4891-4cc5-4711-91c3-5fbd7253ee18
 # ╠═e26eda4d-1aad-44ff-a657-4320a07c8ddd
 # ╠═7239c4f3-554a-40aa-b8f3-a61089ab0343
+# ╠═e78147a2-25b1-4a99-93d8-e911a750767b
+# ╠═e0a76c1a-92f4-4187-a7e8-5a802515d20a
+# ╠═2725c50b-29d1-4662-9470-6138da5f8cb4
 # ╟─a020300f-054f-40f2-bbc0-f2519bcb5aac
 # ╠═76c842d6-18ab-47c6-8c3d-9b0ac302c755
 # ╟─8c4234ce-c204-4931-a355-bc73e91c6823
@@ -1990,13 +2083,17 @@ version = "1.4.1+0"
 # ╠═30e842dc-5531-45c2-b19d-87cc809d9daf
 # ╠═ca1a1e92-e576-4938-a914-08abb1ed8ebe
 # ╠═43f9a8ef-0501-429a-baae-9d19ea2a0458
+# ╠═0bfe06d7-79c2-46b6-9d99-846239c4c26c
 # ╠═da6399ce-562b-4ee9-94cf-fbc77d4a31f8
 # ╠═eaede1b2-2997-4adc-8513-084331032fe4
 # ╠═c00487f8-e9da-40df-8277-38746c0fe9fd
 # ╠═4f3c82c8-8005-411d-9aa6-bbb4e2e642cb
+# ╠═1e30ab88-74e4-46cc-929b-5b9ba37104cf
 # ╟─8604a238-25d4-466f-ba58-dbdd2fe657c5
 # ╠═3699204b-7ae6-4af5-afa8-f7501e5d8451
 # ╠═0d0459f6-f921-4d4d-ac7c-fb121b9b4058
+# ╠═9aa9375b-0047-44ff-b8c7-7f686429b9a1
+# ╠═802cf2dc-af62-460d-8086-b2a180b83a65
 # ╠═d0282bb1-0527-4de8-9a26-6c61d7075b56
 # ╠═e5423ff9-a1d1-4b6d-ade4-e5926f56d2b0
 # ╠═df4186f1-a2d5-4fde-8561-cb45c7da44d7
