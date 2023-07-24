@@ -868,7 +868,7 @@ md"""
 """
 
 # ╔═╡ 6c67f721-9d8b-42df-aecc-93ab5307e2d7
-q1 = convert(𝜖NFA, REGEX.parse("(A+B)*"))
+q1 = convert(𝜖NFA, REGEX.parse("(A+B+C)*"))
 
 # ╔═╡ a7437e1e-86ae-4049-b54e-d4bed317a3df
 transition_diagram(q1)
@@ -879,7 +879,7 @@ md"""
 """
 
 # ╔═╡ e5423ff9-a1d1-4b6d-ade4-e5926f56d2b0
-q2 = convert(NFA, REGEX.parse("(A+B)*"))
+q2 = convert(NFA, REGEX.parse("A+B"))
 
 # ╔═╡ 32c4dc42-6ab6-40c4-ba3f-f27d049fc2c4
 transition_diagram(q2)
@@ -1155,6 +1155,184 @@ yield(dtG)
 # ╔═╡ 13a5455e-57e4-4189-ba03-afaa20da4182
 function plot(dt::DerivTree)
 end
+
+# ╔═╡ 99405ef9-7d99-401f-ab77-45846a5c6259
+# Minimizing the DFA
+function minimize(dfa::DFA)	
+	
+	F = sort(collect(dfa.F))
+	Q = sort(collect(dfa.Q))
+	Σ = sort(collect(dfa.Σ))
+	Q_F = filter(x->x ∉ F, Q)
+
+	Q_len = length(Q)
+	
+	indexify(arr) = [(findfirst(x->x==p, Q), findfirst(x->x==q, Q)) for (p,q) in arr]
+	indexify2(arr) = [findfirst(x->x==p, Q) for p in arr]
+	
+	marked = isone.(zeros(Q_len, Q_len))
+	
+	FQ_F = indexify([(p, q) for p in F for q in Q_F])
+	FF = indexify([(p, q) for p in F for q in F])
+	Q_FQ_F = indexify([(p, q) for p in Q_F for q in Q_F])
+	FFQ_FQ_F = append!(FF, Q_FQ_F)
+
+	FQ_F2 = indexify2(append!([p for p in F], [p for p in Q_F]))
+	lists = Array{Vector}(undef, length(FQ_F2), length(FQ_F2), length(Σ))
+	for ind in [(i,j) for i=1:length(FQ_F2) for j=1:length(FQ_F2)]
+		for a in Σ
+			lists[ind..., findfirst(x->x==a, Σ)] = []
+		end
+	end
+	# @info "lists" lists F Q Σ Q_F FQ_F FF Q_FQ_F FFQ_FQ_F FQ_F2
+	# @info "" FQ_F [(Q[p], Q[q]) for (p,q) in FQ_F]
+		
+	# step 1
+	for ind in FQ_F
+		marked[ind[1], ind[2]] = 1
+		marked[ind[2], ind[1]] = 1
+	end
+
+	# step 2
+	for (p,q) in FFQ_FQ_F
+		if p != q
+			mark = false
+			# step 3
+			for a in Σ
+				(r,s) = (dfa.δ[(Q[p], a)], dfa.δ[(Q[q], a)])
+				(r,s) = (findfirst(x->x==r, Q), findfirst(x->x==s, Q))
+				if marked[r,s] == 1
+					# step 4
+					marked[p, q] = 1
+					marked[q, p] = 1
+					for ind in lists[p, q, findfirst(x->x==a, Σ)]
+						marked[ind[1], ind[2]] = 1
+						marked[ind[2], ind[1]] = 1
+					end
+					mark = true
+				end
+			end
+			if mark == false
+				# step 6
+				for a in Σ
+					if dfa.δ[(Q[p], a)] != dfa.δ[(Q[q], a)]
+						# step 7
+						push!(lists[p, q, findfirst(x->x==a, Σ)], (p,q))
+					end
+				end
+			end
+		end
+	end
+
+	feqs = []
+	leqs = []
+	remove = []
+	for i=1:Q_len
+		for j=1:Q_len
+			if j<i && marked[i,j] == 0
+				push!(leqs, Q[i])
+				push!(feqs, Q[j])
+				append!(remove, [Q[i]])
+			end
+		end
+	end
+
+	rQ = filter(x-> x ∉ remove, Q)
+	subs = Dict(zip(rQ, [x ∈ feqs ? code_state_name(Set([x, leqs[findfirst(y->y==x, feqs)]])) : "[$x]" for x in rQ]))
+
+	@info "" subs
+	
+	Q = Set([subs[x] for x in Q])
+	F = Set([subs[x] for x in F])
+	q0 = subs[dfa.q0]
+	
+	return Q,q0,F
+end
+
+# ╔═╡ b79dcacf-baa6-49a7-b56e-8e031b7e1c20
+[2>2 ? 1 : 3 for x=1:3]
+
+# ╔═╡ fd93a667-1e96-47f2-b648-8342cc1b1cc2
+dfa = DFA(
+	Set(["a", "b", "c", "d", "e", "f", "g", "h"]),
+	Set(['0', '1']),
+	Dict(
+		("a", '0') => "b",
+		("a", '1') => "f",
+		
+		("b", '1') => "c",
+		("b", '0') => "g",
+
+		("c", '1') => "c",
+		("c", '0') => "a",
+
+		("d", '1') => "g",
+		("d", '0') => "c",
+		
+		("e", '1') => "f",
+		("e", '0') => "h",
+
+		("f", '1') => "g",
+		("f", '0') => "c",
+
+		("g", '1') => "e",
+		("g", '0') => "g",
+
+		("h", '1') => "c",
+		("h", '0') => "g",
+
+	),
+	"a",
+	Set(["c"])
+)
+
+# ╔═╡ f6eeb61f-de47-4b9f-9906-84045543690e
+minimize(dfa)
+
+# ╔═╡ 214b88e7-6d5b-4cda-b631-e10d356cefc9
+transition_diagram(dfa)
+
+# ╔═╡ ad35c225-ead7-4d33-a9d7-bec5cedad744
+for i=1:8
+	for j=1:8
+		if j<i && mat[i,j] == 0
+			print((i,j))
+		end
+	end
+end
+
+# ╔═╡ 1fa1bee5-e3de-437a-b83d-085960c8aac9
+# # Minimizing the DFA
+# function minimize(dfa::DFA)	
+	
+# 	F = sort(collect(dfa.F))
+# 	Q = sort(collect(dfa.Q))
+# 	Σ = sort(collect(dfa.Σ))
+# 	Q_F = filter(x->x ∉ F, Q)
+
+# 	Q_len = length(Q)
+	
+# 	indexify(arr) = [(findfirst(x->x==p, Q), findfirst(x->x==q, Q)) for (p,q) in arr]
+# 	indexify2(arr) = [findfirst(x->x==p, Q) for p in arr]
+	
+# 	marked = isone.(zeros(Q_len, Q_len))
+	
+# 	FQ_F = indexify([(p, q) for p in F for q in Q_F])
+# 	FF = indexify([(p, q) for p in F for q in F])
+# 	Q_FQ_F = indexify([(p, q) for p in Q_F for q in Q_F])
+# 	FFQ_FQ_F = append!(FF, Q_FQ_F)
+
+# 	FQ_F2 = indexify2(append!([p for p in F], [p for p in Q_F]))
+# 	lists = Array{Vector}(undef, length(FQ_F2), length(FQ_F2), length(Σ))
+# 	for ind in [(i,j) for i=1:length(FQ_F2) for j=1:length(FQ_F2)]
+# 		for a in Σ
+# 			lists[ind..., findfirst(x->x==a, Σ)] = []
+# 		end
+# 	end
+# 	@info "lists" lists
+
+# ╔═╡ 6db80c50-b2d5-4bc3-91f7-be69ca1e9cca
+code_state_name(Set(["a", "b"]))
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2903,5 +3081,13 @@ version = "3.5.0+0"
 # ╠═afe11549-6acc-42c7-a7f4-f0e1d7cd1692
 # ╠═7423ca4f-cc69-4979-8d7f-706a41c2e283
 # ╠═13a5455e-57e4-4189-ba03-afaa20da4182
+# ╠═99405ef9-7d99-401f-ab77-45846a5c6259
+# ╠═f6eeb61f-de47-4b9f-9906-84045543690e
+# ╠═b79dcacf-baa6-49a7-b56e-8e031b7e1c20
+# ╠═fd93a667-1e96-47f2-b648-8342cc1b1cc2
+# ╠═214b88e7-6d5b-4cda-b631-e10d356cefc9
+# ╠═ad35c225-ead7-4d33-a9d7-bec5cedad744
+# ╠═1fa1bee5-e3de-437a-b83d-085960c8aac9
+# ╠═6db80c50-b2d5-4bc3-91f7-be69ca1e9cca
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
