@@ -17,28 +17,25 @@ end
 # ╔═╡ 1c0b6789-7dcb-4005-8adc-e1a4a275629d
 using Random, PlutoUI, DataStructures, Graphs, GraphMakie, CairoMakie
 
+# ╔═╡ 5e232da0-3d47-4e2c-9499-ea8e09f337fb
+md"""
+# TO-DO LIST
+* DFA → REGEX
+* acceptance for all
+* minimization of dfa
+* chomsky normal form
+* visualization of deriv trees
+* CYK algorithms
+* push down automata
+* simplifying CFGs
+* CFG not ambiguous + parser?
+"""
+
 # ╔═╡ 295638ba-a435-42db-aa5a-838a47d594ab
 md"""
 # Introduction
 We will be implementing algorithms from the first 6 chapters from the _Introduction to Automata Theory, Languages and Computation by John E. Hopcroft and Jeffrey D. Ullman_. The aim of this work is to show that modern programming languages can get very close to mathematics that mathematicians see in the books. Nowdays it is becoming easy for scientists to easily convert mathematics into code with almost the same syntax.
 """
-
-# ╔═╡ ec27378a-8011-4f00-97c6-f9ceefc8423e
-# begin
-# 	g = SimpleDiGraph(3)
-# 	edges = [(1,2), (1,1), (2,2), (1,3), (2,3), (3,3)]
-# 	elabels = ["1", "2", "2", "1","2","3"]
-# 	[add_edge!(g, edge...) for edge in edges]
-# 	f, ax, p = graphplot(g,
-# 		arrow_shift=:end, 
-# 		arrow_size=20,
-# 		ilabels=["q0", "q1", "q2"],
-# 		elabels=elabels,
-# 		node_color=nodecolor
-# 	)
-# 	hidedecorations!(ax); hidespines!(ax); ax.aspect = DataAspect()
-# 	f
-# end
 
 # ╔═╡ e7d3ed3d-6eeb-4783-a0d4-864dd258588a
 md"""
@@ -65,6 +62,8 @@ end
 # ╔═╡ 42bbc7bb-2619-4e2f-8feb-b6db95725a1f
 md"""
 # Deterministic Finite Automata (DFA)
+
+## Formal Definition
 Formally represented by 5-tuple (Q, Σ, δ, q0, F) where:
 
 * Q = set of possible states
@@ -143,6 +142,8 @@ end;
 
 # ╔═╡ 5f52b01e-243a-475a-9583-afc7bc31bd60
 md"""
+## String Acceptance
+
 Let's construct the transition function δ for a DFA that accepts a current state and a symbol and moves the automata to the next state.
 """
 
@@ -169,7 +170,7 @@ end
 
 # ╔═╡ 3c3da943-5661-4fa3-a3f0-dbd90ed63a1f
 md"""
-DFA _accepts_ a word if and only if the δ(q0, word) ∈ F. We can check whether a word is accepted algorithmically this way:
+DFA _accepts_ a word if and only if the δ($q_0$, w) $\in$ F for $w \in Σ^*$. We can check whether a word is accepted algorithmically this way:
 """
 
 # ╔═╡ 81de4891-4cc5-4711-91c3-5fbd7253ee18
@@ -183,24 +184,10 @@ function accepts(automata::DFA, word::String)
 	end
 end
 
-# ╔═╡ e26eda4d-1aad-44ff-a657-4320a07c8ddd
-# length(automata::FA) = length(FA.Q)
-
-# ╔═╡ 7239c4f3-554a-40aa-b8f3-a61089ab0343
-begin
-	Q1 = Set(["1", "2", "3", "4", "5"])
-	Σ1 = Set(['a', 'b', 'c', 'd'])
-	δ1 = Dict(
-		("1", 'a') => "2",
-		("5", 'b') => "3",
-		("4", 'd') => "1",
-		("3", 'c') => "4",
-		("2", 'b') => "5",		
-	)
-	q01 = "1"
-	F1 = Set(["2"])
-	dfa = DFA(Q1, Σ1, δ1, q01, F1)
-end
+# ╔═╡ 0fe503e3-1209-439b-98ab-8aa3ec9e8ec3
+md"""
+## Visualization
+"""
 
 # ╔═╡ 4e0dc9a3-6e73-4c6b-9337-29fd0504f4a0
 function transition_diagram(dfa::DFA)
@@ -221,14 +208,10 @@ function transition_diagram(dfa::DFA)
 			push!(edges, (q,p))
 			push!(elabels, string(a))
 		else
-			@info "q p" q p a sorted edges elabels
 			index = findfirst(x->x==(q,p), edges)
-			@info "index" index
 			elabels[index] = elabels[index] * ", " * a
-			@info "elabels" elabels
 		end
 	end
-	@info "" edges elabels sort(edges)
 	[add_edge!(g, edge...) for edge in edges]
 
 	perm = sortperm(edges)
@@ -251,9 +234,60 @@ function transition_diagram(dfa::DFA)
 	return f
 end
 
+# ╔═╡ 9981bbc9-8853-42db-95af-2b6b4573e563
+md"""
+## Example Definition
+
+### Example from fig 2.2 on page 16
+
+"""
+
+# ╔═╡ c8542af2-5580-4216-acf1-b411352b30e4
+begin
+	dfa1 = DFA(
+		Set(["q0", "q1", "q2", "q3"]),
+		Set(['0', '1']),
+		Dict(
+			("q0", '1') => "q1",
+			("q1", '1') => "q0",
+			("q0", '0') => "q2",
+			("q2", '0') => "q0",
+			("q1", '0') => "q3",
+			("q3", '0') => "q1",
+			("q2", '1') => "q3",
+			("q3", '1') => "q2",
+		),
+		"q0",
+		Set(["q0"])
+	)
+end
+
+# ╔═╡ 335a3b2f-b203-47d9-9424-eb3d7e721034
+md"""
+### Other example
+"""
+
+# ╔═╡ 7239c4f3-554a-40aa-b8f3-a61089ab0343
+begin
+	Q1 = Set(["1", "2", "3", "4", "5"])
+	Σ1 = Set(['a', 'b', 'c', 'd'])
+	δ1 = Dict(
+		("1", 'a') => "2",
+		("5", 'b') => "3",
+		("4", 'd') => "1",
+		("3", 'c') => "4",
+		("2", 'b') => "5",		
+	)
+	q01 = "1"
+	F1 = Set(["2"])
+	dfa2 = DFA(Q1, Σ1, δ1, q01, F1)
+end
+
 # ╔═╡ a020300f-054f-40f2-bbc0-f2519bcb5aac
 md"""
 # Nondeterminictic Finite Automata (NFA)
+
+## Formal Definition
 Formally represented by 5-tuple (Q, Σ, δ, q0, F) where:
 
 * Q = set of possible states
@@ -274,23 +308,69 @@ struct NFA <: FA # DFA = deterministic finite automata
 	F :: Set{State}
 end
 
-# ╔═╡ e0a76c1a-92f4-4187-a7e8-5a802515d20a
-# nfa from example 2.5 on page 23
-nfa2 = NFA(
-	Set(["q0", "q1"]),
-	Set(['0', '1']),
-	Dict(
-		("q0", '0') => Set(["q0", "q1"]),
-		("q0", '1') => Set(["q1"]),
-		("q1", '1') => Set(["q0", "q1"])
-	),
-	"q0",
-	Set(["q1"])
-)
+# ╔═╡ 5f3aa8cb-f05b-4e99-a3c2-17b935fdba32
+md"""
+## Visualisation
+"""
+
+# ╔═╡ 109f33e8-bc1c-4b07-b17a-e3e71224195f
+function transition_diagram(dfa::NFA)
+	states = collect(dfa.Q)
+	size = length(states)
+	sorted = sort(states)
+	indexof(a) = findfirst(x->x==a, sorted)
+	edges = []
+	elabels = []
+	g = SimpleDiGraph(size)
+	
+	for key in keys(dfa.δ)
+		# δ(q, a) = p
+		q = indexof(key[1])
+		a = key[2]
+		possible_states = dfa.δ[key]
+		for p in possible_states
+			p = indexof(p)
+			if (q,p) ∉ edges
+				push!(edges, (q,p))
+				push!(elabels, string(a))
+			else
+				index = findfirst(x->x==(q,p), edges)
+				elabels[index] = elabels[index] * ", " * a
+			end
+		end
+	end
+	[add_edge!(g, edge...) for edge in edges]
+
+	perm = sortperm(edges)
+	elabels = elabels[perm]
+
+	nodecolor = [:white for i=1:nv(g)]
+	nodecolor[indexof(dfa.q0)] = :green
+	for fstate in dfa.F
+		nodecolor[indexof(fstate)] = :red
+	end
+	
+	f, ax, p = graphplot(g,
+		arrow_shift=:end, 
+		arrow_size=20,
+		ilabels=sorted,
+		elabels=elabels,
+		node_color=nodecolor
+	)
+	hidedecorations!(ax); hidespines!(ax); ax.aspect = DataAspect()
+	return f
+end
+
+# ╔═╡ 46b9e722-b97c-41a9-b8ed-3d9342bbbafe
+md"""
+## NFA → DFA conversion
+"""
 
 # ╔═╡ 8c4234ce-c204-4931-a355-bc73e91c6823
 md"""
 # Nondeterminictic Finite Automata with 𝜖-moves (𝜖-NFA)
+
+## Formal Definition
 Formally represented by 5-tuple (Q, Σ, δ, q0, F) where:
 
 * Q = set of possible states
@@ -316,19 +396,72 @@ struct 𝜖NFA <: FA
 end
 # 𝜖 is \itepsilon
 
-# ╔═╡ 30e842dc-5531-45c2-b19d-87cc809d9daf
-begin
-	Q2 = Set(["a", "b", "c"])
-	Σ2 = Set(['0', '1', '2'])
-	δ2 = Dict(
-		("a", 𝜖) => Set(["a", "b"]),
-		("c", '1') => Set(["c", "a"]),
-		("b", '0') => Set(["a", "c"])	
+# ╔═╡ d469fdc5-7eb2-494c-bfb7-a9ee3087106b
+md"""
+## Visualisation
+"""
+
+# ╔═╡ 439f0d7f-69f5-4252-826d-f143a2196564
+function transition_diagram(dfa::𝜖NFA)
+	states = collect(dfa.Q)
+	size = length(states)
+	sorted = sort(states)
+	indexof(a) = findfirst(x->x==a, sorted)
+	edges = []
+	elabels = []
+	g = SimpleDiGraph(size)
+	
+	for key in keys(dfa.δ)
+		# δ(q, a) = p
+		q = indexof(key[1])
+		a = key[2]
+		if a == ""
+			a = "𝜖"
+		end
+		possible_states = dfa.δ[key]
+		for p in possible_states
+			p = indexof(p)
+			if (q,p) ∉ edges
+				push!(edges, (q,p))
+				push!(elabels, string(a))
+			else
+				index = findfirst(x->x==(q,p), edges)
+				elabels[index] = elabels[index] * ", " * a
+			end
+		end
+	end
+	[add_edge!(g, edge...) for edge in edges]
+
+	perm = sortperm(edges)
+	elabels = elabels[perm]
+
+	nodecolor = [:white for i=1:nv(g)]
+	nodecolor[indexof(dfa.q0)] = :green
+	for fstate in dfa.F
+		nodecolor[indexof(fstate)] = :red
+	end
+	
+	f, ax, p = graphplot(g,
+		arrow_shift=:end, 
+		arrow_size=20,
+		ilabels=sorted,
+		elabels=elabels,
+		node_color=nodecolor
 	)
-	q02 = "b"
-	F2 = Set(["b", "c"])
-	enfa = 𝜖NFA(Q2, Σ2, δ2, q02, F2)
+	hidedecorations!(ax); hidespines!(ax); ax.aspect = DataAspect()
+	return f
 end
+
+# ╔═╡ ecf0379f-d0f4-471c-8d9a-5a0caf6e7c0d
+transition_diagram(dfa1)
+
+# ╔═╡ 19ecd9aa-7a18-47a9-bbab-905e4b605298
+transition_diagram(dfa2)
+
+# ╔═╡ 7782fffd-0699-410d-bf59-0fdc2046a1cf
+md"""
+## 𝜖NFA → NFA conversion
+"""
 
 # ╔═╡ ca1a1e92-e576-4938-a914-08abb1ed8ebe
 begin
@@ -386,10 +519,33 @@ begin
 	
 end
 
+# ╔═╡ 083ec2ad-4409-4522-97b9-5c34bda0c7a6
+md"""
+## Example definition
+"""
+
+# ╔═╡ 30e842dc-5531-45c2-b19d-87cc809d9daf
+begin
+	Q2 = Set(["a", "b", "c"])
+	Σ2 = Set(['0', '1', '2'])
+	δ2 = Dict(
+		("a", 𝜖) => Set(["a", "b"]),
+		("c", '1') => Set(["c", "a"]),
+		("b", '0') => Set(["a", "c"])	
+	)
+	q02 = "b"
+	F2 = Set(["b", "c"])
+	enfa = 𝜖NFA(Q2, Σ2, δ2, q02, F2)
+end
+
+# ╔═╡ 7aeabc41-fbc3-4dac-b2b1-bea71ae1b7da
+transition_diagram(enfa)
+
 # ╔═╡ 8604a238-25d4-466f-ba58-dbdd2fe657c5
 md"""
 # Regular Expressions (REGEX)
-To avoid parsing the expression that denotes a regular expression. We will be using full bracketing of the expression.
+
+## Abstract Syntax Tree Representation and Parser
 """
 
 # ╔═╡ 3699204b-7ae6-4af5-afa8-f7501e5d8451
@@ -483,6 +639,11 @@ end
 
 # ╔═╡ 1e30ab88-74e4-46cc-929b-5b9ba37104cf
 remove_space(a) = REGEX.remove_space(a)
+
+# ╔═╡ 30bc37f0-7bd8-4b23-a747-3ff348377a33
+md"""
+## Parsing Example
+"""
 
 # ╔═╡ 0d0459f6-f921-4d4d-ac7c-fb121b9b4058
 begin
@@ -589,6 +750,13 @@ begin
 	end
 end
 
+# ╔═╡ 64342e14-0fa3-4967-92d5-ea093e5a2000
+md"""
+## Conversions
+
+### REGEX → 𝜖NFA conversion
+"""
+
 # ╔═╡ d0282bb1-0527-4de8-9a26-6c61d7075b56
 begin
 	
@@ -636,18 +804,19 @@ function convert(::Type{𝜖NFA}, expr::REGEX.Union)
 
 	a = rename(a, "q")
 	b = rename(b, "q", len_a)
-
-	Q = union(a.Q, b.Q, Set(["q0", "q$(len_a+1)"]))
+	last_state = len_a+len_b+1
+	
+	Q = union(a.Q, b.Q, Set(["q0", "q$(last_state)"]))
 	Σ = union(a.Σ, b.Σ)
 	δ = merge(a.δ, b.δ, 
 		Dict(
 			("q0" , 𝜖) => Set([a.q0, b.q0]),
-			(first(collect(a.F)) , 𝜖) => Set(["q$(len_a+1)"]),
-			(first(collect(b.F)) , 𝜖) => Set(["q$(len_a+1)"]),
+			(first(collect(a.F)) , 𝜖) => Set(["q$(last_state)"]),
+			(first(collect(b.F)) , 𝜖) => Set(["q$(last_state)"]),
 		)
 	)
 	q0 = "q0"
-	F = Set(["q$(len_a+1)"])
+	F = Set(["q$(last_state)"])
 	return 𝜖NFA(Q, Σ, δ, q0, F)
 end
 
@@ -672,56 +841,59 @@ end
 	
 end
 
-# ╔═╡ 5c808409-e0d6-4320-bd8b-ef7fd6fda459
-begin
-	convert(::Type{NFA}, expr::REGEX.RegExpr) = convert(NFA, convert(𝜖NFA, expr))
-	convert(::Type{DFA}, expr::REGEX.RegExpr) = convert(DFA, convert(NFA, expr))
-end
+# ╔═╡ 2b97b515-2aba-40a6-a16b-27c2d0411d86
+md"""
+### REGEX → NFA conversion
+"""
 
-# ╔═╡ 2725c50b-29d1-4662-9470-6138da5f8cb4
-q = convert(DFA, nfa2)
+# ╔═╡ 6a6c3e7c-c61e-429a-a00a-b8c121ff313e
+convert(::Type{NFA}, expr::REGEX.RegExpr) = convert(NFA, convert(𝜖NFA, expr))
 
-# ╔═╡ 144caa29-054f-47af-a9e1-fd5be7d2d9a2
-transition_diagram(q)
+# ╔═╡ fad612c2-c63e-4114-9b77-28c0e8858848
+md"""
+### REGEX → DFA conversion
+"""
 
-# ╔═╡ 43f9a8ef-0501-429a-baae-9d19ea2a0458
-begin # example from fig 2.8 in enfa chapter
-	enfa3 = 𝜖NFA(
-		Set(["q0", "q1", "q2"]),
-		Set(['0', '1', '2']),
-		Dict(
-			("q0", '0') => Set(["q0"]),
-			("q0", 𝜖) => Set(["q1"]),
-			("q1", '1') => Set(["q1"]),
-			("q1", 𝜖) => Set(["q2"]),
-			("q2", '2') => Set(["q2"]),		
-		),
-		"q0",
-		Set(["q2"])
-	)
-	nfa1 = convert(NFA, enfa3)
-end
+# ╔═╡ 566bb40d-1527-4796-9d49-cd7ce7aa8c93
+convert(::Type{DFA}, expr::REGEX.RegExpr) = convert(DFA, convert(NFA, expr))
 
-# ╔═╡ 0bfe06d7-79c2-46b6-9d99-846239c4c26c
-nfa = rename(nfa1, "q", -1)
+# ╔═╡ dcaf893d-51fa-4a58-8eff-7b2e8e952d0b
+md"""
+## Conversion Examples
+"""
 
-# ╔═╡ da6399ce-562b-4ee9-94cf-fbc77d4a31f8
-enfa3
-
-# ╔═╡ eaede1b2-2997-4adc-8513-084331032fe4
-begin
-enfa2 = convert(𝜖NFA, REGEX.parse("A⋅(0+0)*+𝜖"))
-𝜖CLOSURE(enfa2, "q2")
-end
-
-# ╔═╡ e5423ff9-a1d1-4b6d-ade4-e5926f56d2b0
-convert(𝜖NFA, REGEX.parse("A⋅(0+A)*"))
-
-# ╔═╡ 11794743-85f7-4449-b00f-1ea826104f10
-convert(NFA, REGEX.parse("(A+b)*"))
+# ╔═╡ bd549b0d-0266-404d-9f4b-592120957aa5
+md"""
+### REGEX → 𝜖NFA
+"""
 
 # ╔═╡ 6c67f721-9d8b-42df-aecc-93ab5307e2d7
+q1 = convert(𝜖NFA, REGEX.parse("(A+B)*"))
 
+# ╔═╡ a7437e1e-86ae-4049-b54e-d4bed317a3df
+transition_diagram(q1)
+
+# ╔═╡ ec032c49-0f42-4367-b4ea-04c147b86374
+md"""
+### REGEX → NFA
+"""
+
+# ╔═╡ e5423ff9-a1d1-4b6d-ade4-e5926f56d2b0
+q2 = convert(NFA, REGEX.parse("(A+B)*"))
+
+# ╔═╡ 32c4dc42-6ab6-40c4-ba3f-f27d049fc2c4
+transition_diagram(q2)
+
+# ╔═╡ 746aacbb-1462-455a-9b6e-686469685674
+md"""
+### REGEX → DFA
+"""
+
+# ╔═╡ f451b75f-220f-4ccf-b67a-d336bcb09a7e
+q3 = convert(DFA, REGEX.parse("(A+B)*"))
+
+# ╔═╡ 757a3ba9-9900-4783-b81c-84649a0dd721
+transition_diagram(q3)
 
 # ╔═╡ df4186f1-a2d5-4fde-8561-cb45c7da44d7
 # function Base.show(io::IO, expr::Language)
@@ -758,8 +930,66 @@ convert(NFA, REGEX.parse("(A+b)*"))
 # 	print("$(string(expr.lang1))+$(string(expr.lang2))")
 # end
 
-# ╔═╡ 61de9a2e-13e7-4f8a-837d-4253decd979f
-transition_diagram(automata)
+# ╔═╡ d460c908-d7eb-49b4-8924-44bab234cd43
+md"""
+# Conversion examples from textbook
+"""
+
+# ╔═╡ 5c46bd5b-ce78-430e-8ced-7e579fd6c831
+md"""
+## NFA → DFA conversion example Example 2.5 page 23
+"""
+
+# ╔═╡ 7d7c03f0-bc9e-4272-8b36-730aea4f1f4d
+nfa2 = NFA(
+	Set(["q0", "q1"]),
+	Set(['0', '1']),
+	Dict(
+		("q0", '0') => Set(["q0", "q1"]),
+		("q0", '1') => Set(["q1"]),
+		("q1", '1') => Set(["q0", "q1"])
+	),
+	"q0",
+	Set(["q1"])
+)
+
+# ╔═╡ b8d98eb6-7c33-429d-8f16-127df3b9295a
+transition_diagram(nfa2)
+
+# ╔═╡ 1547e812-f21b-4078-80f7-2bd51aa55f36
+dfa3 = convert(DFA, nfa2)
+
+# ╔═╡ 9f9a9106-93e2-466a-bd84-007ae0f1f968
+transition_diagram(dfa3)
+
+# ╔═╡ fa58d471-5e56-4e9e-9c44-d0d22ac4e188
+md"""
+## 𝜖NFA → NFA conversion Example 2.9 page 27
+"""
+
+# ╔═╡ bcf35e8f-a58e-45fb-9fe8-45e06ab76962
+enfa3 = 𝜖NFA(
+	Set(["q0", "q1", "q2"]),
+	Set(['0', '1', '2']),
+	Dict(
+		("q0", '0') => Set(["q0"]),
+		("q0", 𝜖) => Set(["q1"]),
+		("q1", '1') => Set(["q1"]),
+		("q1", 𝜖) => Set(["q2"]),
+		("q2", '2') => Set(["q2"]),		
+	),
+	"q0",
+	Set(["q2"])
+)
+
+# ╔═╡ 19e1a879-f5d9-48cc-8de6-5d8a4cbe7e66
+transition_diagram(enfa3)
+
+# ╔═╡ 97e74c33-ce44-4582-bf78-b148ef938f2d
+nfa1 = convert(NFA, enfa3)
+
+# ╔═╡ e8a774be-b3e6-4895-be4e-d1eb17770925
+transition_diagram(nfa1)
 
 # ╔═╡ d5e8a30e-7c02-4488-9b76-c433bfc47af3
 md"""
@@ -2573,9 +2803,9 @@ version = "3.5.0+0"
 """
 
 # ╔═╡ Cell order:
+# ╟─5e232da0-3d47-4e2c-9499-ea8e09f337fb
 # ╟─295638ba-a435-42db-aa5a-838a47d594ab
-# ╠═1c0b6789-7dcb-4005-8adc-e1a4a275629d
-# ╠═ec27378a-8011-4f00-97c6-f9ceefc8423e
+# ╟─1c0b6789-7dcb-4005-8adc-e1a4a275629d
 # ╟─e7d3ed3d-6eeb-4783-a0d4-864dd258588a
 # ╠═52e6d1e7-064a-4cea-940d-31626ba11444
 # ╟─481ffec9-8a37-4d49-b18b-a73f1a9f20ce
@@ -2589,39 +2819,67 @@ version = "3.5.0+0"
 # ╠═554b1c89-d99b-4da3-a2b0-485e7f907b9f
 # ╟─3c3da943-5661-4fa3-a3f0-dbd90ed63a1f
 # ╠═81de4891-4cc5-4711-91c3-5fbd7253ee18
-# ╠═e26eda4d-1aad-44ff-a657-4320a07c8ddd
-# ╠═7239c4f3-554a-40aa-b8f3-a61089ab0343
-# ╠═e78147a2-25b1-4a99-93d8-e911a750767b
-# ╠═e0a76c1a-92f4-4187-a7e8-5a802515d20a
+# ╟─0fe503e3-1209-439b-98ab-8aa3ec9e8ec3
 # ╠═4e0dc9a3-6e73-4c6b-9337-29fd0504f4a0
-# ╠═2725c50b-29d1-4662-9470-6138da5f8cb4
-# ╠═144caa29-054f-47af-a9e1-fd5be7d2d9a2
+# ╟─9981bbc9-8853-42db-95af-2b6b4573e563
+# ╠═c8542af2-5580-4216-acf1-b411352b30e4
+# ╠═ecf0379f-d0f4-471c-8d9a-5a0caf6e7c0d
+# ╟─335a3b2f-b203-47d9-9424-eb3d7e721034
+# ╠═7239c4f3-554a-40aa-b8f3-a61089ab0343
+# ╠═19ecd9aa-7a18-47a9-bbab-905e4b605298
 # ╟─a020300f-054f-40f2-bbc0-f2519bcb5aac
 # ╠═76c842d6-18ab-47c6-8c3d-9b0ac302c755
+# ╟─5f3aa8cb-f05b-4e99-a3c2-17b935fdba32
+# ╠═109f33e8-bc1c-4b07-b17a-e3e71224195f
+# ╟─46b9e722-b97c-41a9-b8ed-3d9342bbbafe
+# ╠═e78147a2-25b1-4a99-93d8-e911a750767b
 # ╟─8c4234ce-c204-4931-a355-bc73e91c6823
 # ╠═a7a06841-d2b3-4265-8549-44b3a08e5302
-# ╠═30e842dc-5531-45c2-b19d-87cc809d9daf
+# ╟─d469fdc5-7eb2-494c-bfb7-a9ee3087106b
+# ╠═439f0d7f-69f5-4252-826d-f143a2196564
+# ╟─7782fffd-0699-410d-bf59-0fdc2046a1cf
 # ╠═ca1a1e92-e576-4938-a914-08abb1ed8ebe
-# ╠═43f9a8ef-0501-429a-baae-9d19ea2a0458
-# ╠═0bfe06d7-79c2-46b6-9d99-846239c4c26c
-# ╠═da6399ce-562b-4ee9-94cf-fbc77d4a31f8
-# ╠═eaede1b2-2997-4adc-8513-084331032fe4
+# ╟─083ec2ad-4409-4522-97b9-5c34bda0c7a6
+# ╠═30e842dc-5531-45c2-b19d-87cc809d9daf
+# ╠═7aeabc41-fbc3-4dac-b2b1-bea71ae1b7da
 # ╠═1e30ab88-74e4-46cc-929b-5b9ba37104cf
 # ╟─8604a238-25d4-466f-ba58-dbdd2fe657c5
 # ╠═3699204b-7ae6-4af5-afa8-f7501e5d8451
+# ╟─30bc37f0-7bd8-4b23-a747-3ff348377a33
 # ╠═0d0459f6-f921-4d4d-ac7c-fb121b9b4058
 # ╠═9aa9375b-0047-44ff-b8c7-7f686429b9a1
+# ╟─64342e14-0fa3-4967-92d5-ea093e5a2000
 # ╠═d0282bb1-0527-4de8-9a26-6c61d7075b56
-# ╠═e5423ff9-a1d1-4b6d-ade4-e5926f56d2b0
-# ╠═5c808409-e0d6-4320-bd8b-ef7fd6fda459
-# ╠═11794743-85f7-4449-b00f-1ea826104f10
+# ╟─2b97b515-2aba-40a6-a16b-27c2d0411d86
+# ╠═6a6c3e7c-c61e-429a-a00a-b8c121ff313e
+# ╟─fad612c2-c63e-4114-9b77-28c0e8858848
+# ╠═566bb40d-1527-4796-9d49-cd7ce7aa8c93
+# ╟─dcaf893d-51fa-4a58-8eff-7b2e8e952d0b
+# ╟─bd549b0d-0266-404d-9f4b-592120957aa5
 # ╠═6c67f721-9d8b-42df-aecc-93ab5307e2d7
+# ╠═a7437e1e-86ae-4049-b54e-d4bed317a3df
+# ╟─ec032c49-0f42-4367-b4ea-04c147b86374
+# ╠═e5423ff9-a1d1-4b6d-ade4-e5926f56d2b0
+# ╠═32c4dc42-6ab6-40c4-ba3f-f27d049fc2c4
+# ╟─746aacbb-1462-455a-9b6e-686469685674
+# ╠═f451b75f-220f-4ccf-b67a-d336bcb09a7e
+# ╠═757a3ba9-9900-4783-b81c-84649a0dd721
 # ╠═df4186f1-a2d5-4fde-8561-cb45c7da44d7
 # ╠═69960128-6005-46f2-a472-b00ab0d6abe7
 # ╠═0df007a2-7553-43a6-991f-815704a29985
 # ╠═08d2ba43-fd3c-481e-b18b-f100bccd033e
 # ╠═1788b455-4444-4a7e-b830-a439dc9fba6a
-# ╠═61de9a2e-13e7-4f8a-837d-4253decd979f
+# ╟─d460c908-d7eb-49b4-8924-44bab234cd43
+# ╠═5c46bd5b-ce78-430e-8ced-7e579fd6c831
+# ╠═7d7c03f0-bc9e-4272-8b36-730aea4f1f4d
+# ╠═b8d98eb6-7c33-429d-8f16-127df3b9295a
+# ╠═1547e812-f21b-4078-80f7-2bd51aa55f36
+# ╠═9f9a9106-93e2-466a-bd84-007ae0f1f968
+# ╠═fa58d471-5e56-4e9e-9c44-d0d22ac4e188
+# ╠═bcf35e8f-a58e-45fb-9fe8-45e06ab76962
+# ╠═19e1a879-f5d9-48cc-8de6-5d8a4cbe7e66
+# ╠═97e74c33-ce44-4582-bf78-b148ef938f2d
+# ╠═e8a774be-b3e6-4895-be4e-d1eb17770925
 # ╟─38eeeab0-7390-4ecb-8649-a215db54bdf9
 # ╟─d5e8a30e-7c02-4488-9b76-c433bfc47af3
 # ╠═af24a85b-10dc-4191-9f9c-1feb5b087c9b
