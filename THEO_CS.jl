@@ -10,7 +10,7 @@ using DataStructures, Graphs, GraphMakie, CairoMakie, LayeredLayouts, Makie.Geom
 # ╔═╡ 295638ba-a435-42db-aa5a-838a47d594ab
 md"""
 # Aim
-We will be implementing chosen structures, functions and algorithms from the first 6 chapters from the _Introduction to Automata Theory, Languages and Computation by John E. Hopcroft and Jeffrey D. Ullman_. The aim of this work is neither to provide high-level library featuring all the functionalities discussed in the book nor algorithmically optimal solutions to the problem. The main goal is to show that modern high-level programming languages come very close to mathematics we see in textbooks and their knowledge can be very useful and versatile tool in understanding, exploring and presenting mathematics. All our code is written in Julia which has extraordinary support for intuitive mathematical syntax and rich visualization ecosystem. This text can be used as a motivation for other students to try to implement their own programs that are concerned with Theoretical Computer Science and enrich their learning experience.
+We will be implementing chosen structures, functions and algorithms from the first 6 chapters of the _Introduction to Automata Theory, Languages and Computation by John E. Hopcroft and Jeffrey D. Ullman_. The aim of this work is neither to provide high-level library featuring all the functionalities discussed in the book nor algorithmically optimal solutions to the problems. The main goal is to show that modern high-level programming languages come very close to mathematics we see in textbooks and their knowledge can be very useful and versatile tool in understanding, exploring and presenting mathematics. All our code is written in Julia which has extraordinary support for intuitive mathematical syntax and rich visualization ecosystem. This text can be used as a motivation for other students to try to implement their own programs that are concerned with Theoretical Computer Science and enrich their learning experience.
 """
 
 # ╔═╡ 79ef1068-fc7c-4b31-8d70-e8b28a43a05b
@@ -365,7 +365,7 @@ struct 𝜖NFA <: FA
 	Q :: Set{State}
 	Σ :: Set{Symbol}
 	δ :: Dict{
-			Union{Tuple{State,Symbol}, Tuple{State, Word}}, # either char as Symbol or empty string as Word
+			Union{Tuple{State,Symbol}, Tuple{State, Word}},
 			Set{State}
 	}
 	q0 :: State
